@@ -1,7 +1,6 @@
 from datetime import timedelta, datetime, timezone
-from pathlib import Path
-from dotenv import load_dotenv
-import jwt, os
+
+import jwt
 from pwdlib import PasswordHash
 from app.models.tables import User
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,18 +9,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 import app.schemas.user as schemas
 import logging
-
-
-load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
+from app.config import SECRET_KEY, ALGORITHM, EXPIRE_MIN
 
 router = APIRouter(
   prefix = '/auth',
   tags = ['auth']
 )
 
-SECRET_KEY = os.getenv("AUTH_SECRET_KEY")
-ALGORITHM = os.getenv("AUTH_ALGORITHM")
-EXPIRE_MIN = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 password_hash = PasswordHash.recommended()
 
 def hash_password(password: str) -> str:
@@ -52,16 +46,17 @@ def create_user(user: schemas.UserRegister, db: Session = Depends(get_db)):
   return new_user
 
 @router.post('/login', response_model=schemas.TokenResponse)
-def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
-  existing_user = db.query(User).filter(user.email == User.email).first()
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+  existing_user = db.query(User).filter(User.email == form_data.username).first()
 
   if not existing_user or not verify_password(
-    user.password,
+    form_data.password,
     existing_user.hashed_password
   ):
     raise HTTPException(
       status_code=status.HTTP_401_UNAUTHORIZED,
-      detail="Invalid Credentials"
+      detail="Invalid Credentials",
+      headers={"WWW-Authenticate": "Bearer"},
     )
 
   token = create_access_token(existing_user.email, existing_user.id)
