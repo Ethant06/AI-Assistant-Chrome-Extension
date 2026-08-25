@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, ForeignKey, Integer, Text, DateTime, Float
 from sqlalchemy.orm import relationship
-from database import Base
+from app.database import Base
 from sqlalchemy import func
 from pgvector.sqlalchemy import Vector
 
@@ -63,7 +63,7 @@ class MessageSource(Base):
   __tablename__ = "message_sources"
   id = Column(Integer, primary_key=True)
   message_id = Column(Integer, ForeignKey("messages.id"))
-  chunk_id = Column(Integer, ForeignKey("document_chunks.id"))
+  chunk_id = Column(Integer, ForeignKey("document_chunks.id", ondelete="SET NULL"), nullable=True)
   relevance_score = Column(Float)
   message = relationship("Message", back_populates="sources")
   chunk = relationship("DocumentChunk")
