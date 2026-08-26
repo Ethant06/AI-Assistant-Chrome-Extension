@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.tables import Document
@@ -48,4 +48,55 @@ def list_documents(
   page_size: int = 10,
   db: Session = Depends(get_db),
   current_user: User = Depends(get_current_user)
-)
+):
+  offset = (page - 1) * page_size
+  total = db.query(Document).filter(Document.user_id == current_user.id).count()
+
+  documents = (
+    db.query(Document)
+    .filter(Document.user_id == current_user.id)
+    .order_by(Document.created_at.desc())
+    .offset(offset)
+    .limit(page_size)
+    .all()
+  )
+
+  return {
+    "documents": documents,
+    "total": total,
+    "page": page,
+    "page_size": page_size
+  }
+
+@router.get("/{document_id}", response_model=DocumentResponse)
+def get_document(
+  document_id: int,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+):
+  document = db.query(Document).filter(Document.user_id == current_user.id).filter(Document.id == document_id).first()
+
+  if not document:
+    logger.warning(f"Document {document_id} not found for user {current_user.email}")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+  return document
+
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_document(
+  document_id: int,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+):
+
+  document = (
+    db.query(Document)
+    .filter(Document.user_id == current_user.id, Document.id == document_id)
+    .first()
+  )
+
+  if not document:
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+  db.delete(document)
+  db.commit()
