@@ -7,6 +7,8 @@ from app.config import OPEN_AI_KEY
 
 client = OpenAI(api_key=OPEN_AI_KEY)
 
+logger = logging.getLogger(__name__)
+
 def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150) -> list[str]:
   """
     Splits text into overlapping chunks.
@@ -71,3 +73,52 @@ def ingest_document(document_id: int):
   db: Session = SessionLocal()
 
   try:
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+      logger.error(f"Ingestion failed: Document {document_id} not found.")
+      return
+
+    logger.info(f"Ingestion started: document_id={document_id} title='{document.title}'")
+    chunks = chunk_text(document.raw_content)
+    logger.info(f"Chunking Complete: {len(chunks)} chunks created for Document {document_id}")
+
+
+
+    for index, chunk_text_content in enumerate(chunks):
+
+      try:
+        embedding = embed_text(chunk_text_content)
+
+        chunk = DocumentChunk(
+          document_id = document_id,
+          embed_text = chunk_text_content,
+          embed_index = index,
+          embedding = embedding
+        )
+        db.add(chunk)
+
+      except Exception as e:
+        logger.error(f"Failed to embed chunk {index} for document {document_id}: {e}")
+        continue
+
+    document.status = "ready"
+    document.chunk_count = len(chunks)
+    db.commit()
+
+    logger.info(f"Ingestion complete: document_id={document_id} chunks={len(chunks)} status=ready")
+
+
+  except Exception as e:
+
+    try:
+      document = db.query(Document).filter(Document.id == document_id).first()
+      if document:
+        document.status = "failed"
+        db.commit()
+
+    except:
+      pass
+
+  finally:
+    db.close()
+
