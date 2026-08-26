@@ -11,6 +11,9 @@ import app.schemas.user as schemas
 import logging
 from app.config import SECRET_KEY, ALGORITHM, EXPIRE_MIN
 
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
   prefix = '/auth',
   tags = ['auth']
@@ -34,6 +37,7 @@ def create_access_token(username: str, user_id: int) -> str:
 def create_user(user: schemas.UserRegister, db: Session = Depends(get_db)):
   existing_user = db.query(User).filter(User.email == user.email).first()
   if existing_user:
+    logger.warning(f"Registration attempt with existing email: {user.email}")
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
   new_user = User(
     email = user.email,
@@ -43,6 +47,7 @@ def create_user(user: schemas.UserRegister, db: Session = Depends(get_db)):
   db.add(new_user)
   db.commit()
   db.refresh(new_user)
+  logger.info(f"New user registered: {new_user.email}")
   return new_user
 
 @router.post('/login', response_model=schemas.TokenResponse)
@@ -53,6 +58,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     form_data.password,
     existing_user.hashed_password
   ):
+    logger.warning(f"Failed login attempt for: {form_data.username}")
     raise HTTPException(
       status_code=status.HTTP_401_UNAUTHORIZED,
       detail="Invalid Credentials",
@@ -60,7 +66,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     )
 
   token = create_access_token(existing_user.email, existing_user.id)
-
+  logger.info(f"User logged in: {form_data.username}")
   return {
     'access_token': token,
     'token_type': 'bearer'
