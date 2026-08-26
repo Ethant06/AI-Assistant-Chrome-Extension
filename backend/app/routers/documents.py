@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.tables import Document
-from app.schemas.documents import DocumentCreate, DocumentResponse, DocumentListResponse
+from app.schemas.documents import DocumentCreate, DocumentResponse, DocumentListResponse, DocumentUpdate
 from app.dependencies.deps import get_current_user
 from app.models.tables import User
 import logging
@@ -100,3 +100,19 @@ def delete_document(
 
   db.delete(document)
   db.commit()
+
+@router.patch("/{document_id}", response_model=DocumentResponse)
+def update_document(
+  document_id: int,
+  data: DocumentUpdate,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+):
+
+  document= db.query(Document).filter(Document.id == document_id, current_user.id == Document.user_id).first()
+  if not document:
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+  document.title = data.title
+  db.commit()
+  db.refresh(document)
+  return document

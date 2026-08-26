@@ -3,6 +3,10 @@ from datetime import datetime
 from typing import Optional
 
 
+class DocumentUpdate(BaseModel):
+  title: str
+
+
 # What the client sends when saving a document
 # notice raw_content is never in documentresponse since we never send full raw content back into list responses since it can be thousands of words
 class DocumentCreate(BaseModel):
