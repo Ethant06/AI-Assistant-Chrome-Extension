@@ -5,9 +5,10 @@ from sqlalchemy.orm import Session
 from app.models.tables import User
 import jwt
 from jwt import PyJWTError
+import logging
 from app.config import SECRET_KEY, ALGORITHM
 
-
+logger = logging.getLogger(__name__)
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 def get_current_user(
@@ -30,6 +31,7 @@ def get_current_user(
 
   email = payload.get("sub")
   if not email:
+    logger.warning("Invalid or expired token attempt")
     raise credential_exception
 
   user = db.query(User).filter(User.email == email).first()
