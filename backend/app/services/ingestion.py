@@ -91,8 +91,8 @@ def ingest_document(document_id: int):
 
         chunk = DocumentChunk(
           document_id = document_id,
-          embed_text = chunk_text_content,
-          embed_index = index,
+          chunk_text = chunk_text_content,
+          chunk_index = index,
           embedding = embedding
         )
         db.add(chunk)
@@ -109,6 +109,7 @@ def ingest_document(document_id: int):
 
 
   except Exception as e:
+    logger.error(f"Ingestion failed for document {document_id}: {e}", exc_info=True)
 
     try:
       document = db.query(Document).filter(Document.id == document_id).first()
