@@ -34,6 +34,7 @@ class SourceResponse(BaseModel):
   class config:
     from_attributes = True
 
+
 class MessageResponse(BaseModel):
   """
   One message in a conversation.
@@ -45,3 +46,26 @@ class MessageResponse(BaseModel):
   sources: list[SourceResponse] = []
 
 
+class ConversationResponse(BaseModel):
+  id: int
+  title: Optional[str] = None
+  created_at: datetime
+  messages: list[MessageResponse] = []
+
+  class config:
+    from_attributes = True
+
+
+
+class ConversationSummary(BaseModel):
+  id: int
+  title: Optional[str] = None
+  created_at: datetime
+
+  class config:
+    from_attributes = True
+
+
+class ConversationListResponse(BaseModel):
+  conversations: list[ConversationSummary]
+  total: int
