@@ -7,6 +7,8 @@ from app.dependencies.deps import get_current_user
 from app.models.tables import User
 import logging
 
+from app.services.ingestion import ingest_document
+
 logger = logging.getLogger(__name__)
 router = APIRouter(
   prefix = "/documents",
@@ -38,6 +40,8 @@ def create_document(
     # trigger ingestion pipeline as background task
     # we'll implement this function in feature/ingestion
     # background_tasks.add_task(ingest_document, document.id)
+
+  background_tasks.add_task(ingest_document, document.id)
 
   logger.info(f"Document created: id={document.id} user={current_user.email}")
   return document
