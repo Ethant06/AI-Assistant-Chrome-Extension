@@ -1,7 +1,7 @@
 from openai import OpenAI
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from app.models.tables import Document, DocumentChunk
+from app.models.tables import Document, DocumentChunk, Conversation, Message, MessageSource
 
 import logging
 import os
@@ -9,6 +9,13 @@ from app.config import OPEN_AI_KEY
 
 logger = logging.getLogger(__name__)
 client = OpenAI(api_key=OPEN_AI_KEY)
+
+"""
+flush() sends the SQL to the database and gets you the auto-generated ID,
+but doesn't permanently commit the transaction. This means if something fails later,
+the whole thing rolls back cleanly. You commit once at the very end when everything is ready.
+"""
+
 
 
 # Step 1: Embed the user question
@@ -44,7 +51,6 @@ def retrieve_chunks(
     Filters by user_id so users only search their own documents.
     Filters by status='ready' so only fully ingested documents are searched.
   """
-
   chunks = (
     db.query(DocumentChunk)
     .join(Document, Document.id == DocumentChunk.document_id)
@@ -53,8 +59,6 @@ def retrieve_chunks(
     .limit(top_k)
     .all()
   )
-
-
   logger.info(f"Retrieved {len(chunks)} chunks for user {user_id}")
   return chunks
 
@@ -70,6 +74,7 @@ def build_context(chunks: list[DocumentChunk]) -> str:
   return "\n\n".join(context_parts)
 
 
+# Step 3: Generate streamed answer
 def generate_answer_stream(question: str, chunks: list[DocumentChunk]):
   """
     Generator function that streams tokens from OpenAI.
@@ -127,5 +132,93 @@ def generate_answer_stream(question: str, chunks: list[DocumentChunk]):
     delta = chunk.choices[0].delta.content
     if delta:
       yield delta
+
+
+# Step 4: Saving conversation to database
+def get_or_create_conversation(
+  user_id: int,
+  conversation_id: int | None,
+  question: str,
+  db: Session
+  ) -> Conversation:
+    """
+      Either retrieve an existing conversation or create a new one.
+
+      If conversation_id is provided → user is continuing an existing chat
+      If conversation_id is None → start a fresh conversation
+
+      The title is set to the first question asked — gives the conversation
+      a meaningful name in the UI ("How do B-tree indexes work?")
+      rather than "Untitled conversation".
+    """
+
+    if conversation_id:
+      conversation = (
+        db.query(Conversation)
+        .filter(
+          Conversation.id == conversation_id,
+          Conversation.user_id == user_id
+        )
+        .first()
+      )
+      if not conversation:
+
+        conversation = None
+
+    if not conversation_id or not conversation:
+      #truncate title to 100 chars - shorter question titles
+      title = question[:100] + "..." if len(question) > 100 else question
+      conversation = Conversation(user_id = user_id, title = title)
+      db.add(conversation)
+      db.flush() # to get the conversation.id without commiting it permanently yet. This is like staging
+
+    return conversation
+
+def save_messages(conversation: Conversation, question: str, answer: str, chunks: list[DocumentChunk], db: Session):
+    """
+    Save the user's question and the AI's answer to the database.
+    Also saves which chunks were cited (MessageSource rows).
+
+    Called AFTER streaming completes — we need the full answer
+    text before we can save it. You can't save half an answer.
+
+    Why save message sources?
+    - Powers the citations UI ("Source: PostgreSQL Guide")
+    - Lets you build the eval harness later
+    - Shows users WHERE the answer came from
+    """
+
+    # save user message
+    user_message = Message(
+      conversation_id = conversation.id,
+      role="user",
+      content=question
+    )
+    db.add(user_message)
+    db.flush() # get user_message.id
+
+    # save assistant message
+    assistantMessage = Message(
+      conversation_id = conversation.id,
+      role="assistant",
+      content=answer
+    )
+    db.add(assistantMessage)
+    db.flush() # get assistant_message.id
+
+    for chunk in chunks:
+      source = MessageSource(
+        message_id=assistantMessage.id,
+        chunk_id=chunk.id
+      )
+
+      db.add(source)
+
+    db.commit()
+    logger.info(
+        f"Saved conversation_id={conversation.id} "
+    )
+
+
 
 
