@@ -62,3 +62,109 @@ def chat(
     question=request.question,
     db=db
   )
+
+  # step 4: stream the answer
+  # accumulate the tokens to save to Database after finish streaming
+  accumulated_answer = []
+
+  def stream_and_save():
+    """
+    Inner generator that:
+    1. Yields each token to the client (streaming)
+    2. Accumulates tokens into a complete answer
+    3. After streaming finishes, saves everything to DB
+    """
+
+    for token in generate_answer_stream(request.question, chunks):
+      accumulated_answer.append(token)
+      yield token
+
+    full_answer = "".join(accumulated_answer)
+    save_messages(
+      conversation=conversation,
+      question=request.question,
+      answer=full_answer,
+      chunks=chunks,
+      db=db
+    )
+    logger.info(f"Chat complete: conversation_id={conversation.id}")
+
+  return StreamingResponse(
+    stream_and_save,
+    media_type="text/plain"
+  )
+
+@router.get("/conversations/", response_model=ConversationListResponse)
+def list_conversations(
+  db:Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+):
+  """
+  returns all conversations for the current user.
+  Lightweight - no messages loaded, just titles and metadata
+  """
+
+  conversations = (
+    db.query(Conversation)
+    .filter(Conversation.user_id == current_user.id)
+    .order_by(Conversation.created_at.desc())
+    .all()
+    )
+
+  total = len(conversations)
+  logger.info(f"User {current_user.email} listed {total} conversations")
+
+  return {
+    "conversations": conversations,
+    "total": total
+  }
+
+@router.get("/conversations/{conversation_id}", response_model=ConversationResponse)
+def get_conversation(
+  conversation_id: int,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+):
+
+  """
+    Returns a full conversation with all messages and sources.
+    Used when a user clicks on a past conversation to resume it.
+  """
+
+  conversation = (
+    db.query(Conversation)
+    .filter(Conversation.user_id == current_user.id, Conversation.id == conversation_id)
+    .first()
+  )
+
+  if not conversation:
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+
+  logger.info(f"User {current_user.email} opened conversation {conversation_id}")
+  return conversation
+
+@router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_conversation(
+  conversation_id: int,
+  db: Session = Depends(get_db),
+  current_user: User = Depends(get_current_user)
+):
+
+  """
+    Deletes a conversation and all its messages (cascade).
+  """
+
+  conversation = (
+    db.query(Conversation)
+    .filter(Conversation.user_id == current_user.id, Conversation.id == conversation_id)
+    .first()
+  )
+
+  if not conversation:
+    raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "Conversation not found")
+
+  db.delete(conversation)
+  db.commit()
+  logger.info(f"Conversation {conversation_id} deleted by {current_user.email}")
+
+

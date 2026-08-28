@@ -218,7 +218,3 @@ def save_messages(conversation: Conversation, question: str, answer: str, chunks
     logger.info(
         f"Saved conversation_id={conversation.id} "
     )
-
-
-
-
