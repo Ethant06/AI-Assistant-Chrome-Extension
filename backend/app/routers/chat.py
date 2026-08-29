@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
-from app.models.tables import Conversation, Message, User
+from app.models.tables import Conversation, Message, User, MessageSource, DocumentChunk, Document
 from app.schemas.chat import (
   ChatRequest,
   ConversationListResponse,
@@ -49,10 +49,10 @@ def chat(
 
   # step 2: retrieve relevant chunks
   chunks = retrieve_chunks(
-    question_embedding=question_embedding,
+    embedding_question=question_embedding,
     user_id = current_user.id,
     db=db,
-    top=4
+    top_k=4
   )
 
   # step 3: get or create conversation
@@ -90,7 +90,7 @@ def chat(
     logger.info(f"Chat complete: conversation_id={conversation.id}")
 
   return StreamingResponse(
-    stream_and_save,
+    stream_and_save(),
     media_type="text/plain"
   )
 
@@ -133,6 +133,12 @@ def get_conversation(
 
   conversation = (
     db.query(Conversation)
+    .options(
+            joinedload(Conversation.messages)
+            .joinedload(Message.sources)
+            .joinedload(MessageSource.chunk)
+            .joinedload(DocumentChunk.document)
+        )
     .filter(Conversation.user_id == current_user.id, Conversation.id == conversation_id)
     .first()
   )

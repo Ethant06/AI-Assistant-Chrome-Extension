@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional
 
@@ -25,14 +25,11 @@ class SourceResponse(BaseModel):
   source_url: link back to original page if it came from a url
   relevance_score: how similar this chunk was to the question (0 - 1)
   """
-  chunk_id: Optional[int] = None
+  model_config = ConfigDict(from_attributes=True)
+
   document_id: int
   document_title: str
   source_url: Optional[str] = None
-  relevance_score: float
-
-  class config:
-    from_attributes = True
 
 
 class MessageResponse(BaseModel):
@@ -42,28 +39,27 @@ class MessageResponse(BaseModel):
   """
   id: int
   role: str
+  content: str
   created_at: datetime
   sources: list[SourceResponse] = []
 
 
 class ConversationResponse(BaseModel):
+  model_config = ConfigDict(from_attributes=True)
+
   id: int
   title: Optional[str] = None
   created_at: datetime
   messages: list[MessageResponse] = []
 
-  class config:
-    from_attributes = True
-
 
 
 class ConversationSummary(BaseModel):
+  model_config = ConfigDict(from_attributes=True)
+
   id: int
   title: Optional[str] = None
   created_at: datetime
-
-  class config:
-    from_attributes = True
 
 
 class ConversationListResponse(BaseModel):

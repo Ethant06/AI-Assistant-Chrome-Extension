@@ -46,7 +46,7 @@ class Conversation(Base):
   user_id = Column(Integer, ForeignKey("users.id"))
   title = Column(String)
   created_at = Column(DateTime, server_default=func.now())
-  messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+  messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", order_by="Message.id")
   user = relationship("User", back_populates="conversations")
 
 class Message(Base):
@@ -64,6 +64,18 @@ class MessageSource(Base):
   id = Column(Integer, primary_key=True)
   message_id = Column(Integer, ForeignKey("messages.id"))
   chunk_id = Column(Integer, ForeignKey("document_chunks.id", ondelete="SET NULL"), nullable=True)
-  relevance_score = Column(Float)
   message = relationship("Message", back_populates="sources")
   chunk = relationship("DocumentChunk")
+
+  @property
+  def document_id(self):
+    return self.chunk.document.id if self.chunk else None
+
+  @property
+  def document_title(self):
+    return self.chunk.document.title if self.chunk else None
+
+  @property
+  def source_url(self):
+    return self.chunk.document.source_url if self.chunk else None
+
