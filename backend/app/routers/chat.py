@@ -1,3 +1,18 @@
+"""
+app/routers/chat.py
+
+RAG chat endpoints — the core user-facing feature of the application.
+
+All endpoints require authentication (JWT Bearer token via get_current_user).
+All queries filter by current_user.id — users only access their own conversations.
+
+Routes:
+    POST   /chat/                           main RAG endpoint, streams answer
+    GET    /chat/conversations/             list all conversations (lightweight)
+    GET    /chat/conversations/{id}         full conversation with messages + sources
+    DELETE /chat/conversations/{id}         delete conversation + cascade messages
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
@@ -33,13 +48,18 @@ def chat(
 ):
 
   """
-  The main RAG endpoint.
+    Main RAG endpoint — embeds the question, retrieves relevant chunks,
+    streams a grounded answer, then saves the full conversation to the DB.
 
-  Takes a question, retrieves relevant chunks from the user's documents, streams an answer grounded in those chunks, then saves
-  the conversation to the database.
+    Returns text/plain StreamingResponse (not JSON) — tokens arrive
+    progressively as GPT generates them. Handle as a stream on the frontend.
 
-  Returns a StreamingResponse - not JSON.
-  Tokens arrive at the client as they're generated
+    Conversation persistence happens after streaming completes, not during.
+    Use GET /chat/conversations/{id} to retrieve the saved conversation
+    with full messages and source citations after streaming finishes.
+
+    "I don't know" detection: if the answer contains the fallback phrase,
+    chunks are not saved as sources — the assistant message saves with sources=[].
   """
 
   logger.info(f"Chat request from user {current_user.email}: '{request.question[:50]}'")
@@ -69,10 +89,12 @@ def chat(
 
   def stream_and_save():
     """
-    Inner generator that:
-    1. Yields each token to the client (streaming)
-    2. Accumulates tokens into a complete answer
-    3. After streaming finishes, saves everything to DB
+        Inner generator — serves two purposes simultaneously:
+        1. Yields each token to the client as it arrives (streaming effect)
+        2. Accumulates all tokens so the complete answer can be saved after
+
+        Save happens after the last token is yielded — the full answer text
+        is only known once streaming is complete.
     """
 
     for token in generate_answer_stream(request.question, chunks):
@@ -129,8 +151,15 @@ def get_conversation(
 ):
 
   """
-    Returns a full conversation with all messages and sources.
-    Used when a user clicks on a past conversation to resume it.
+    Returns a full conversation with all messages and source citations.
+
+    joinedload chain pre-loads the entire relationship tree in one query:
+    Conversation → messages → sources → chunk → document
+
+    Why joinedload? Without it, SQLAlchemy uses lazy loading — each relationship
+    access triggers a new DB query. By the time Pydantic serializes the response,
+    the session is closed and lazy loading fails. joinedload ensures everything
+    is loaded while the session is still open.
   """
 
   conversation = (
