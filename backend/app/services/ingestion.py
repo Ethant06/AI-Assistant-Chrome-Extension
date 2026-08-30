@@ -11,14 +11,24 @@ logger = logging.getLogger(__name__)
 
 def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150) -> list[str]:
   """
-    Splits text into overlapping chunks.
+    Splits raw document text into overlapping chunks for embedding.
 
-    chunk_size: (MAX) characters per chunk
-    overlap: how many characters to repeat between chunks
+    Why chunk all? Embedding an entire document as one vector loses ganularity - one vector cannot capture 1- different
+    topics precisely. Smaller chunks allow retrieval to pinpoint exactly the relevant section rather than the whole document.
 
-    Why overlap? So context at chunk boundaries isn't lost.
-    If a sentence spans two chunks, overlap ensures both chunks
-    contain enough context to make sense of it.
+     Boundary detection priority (avoids cutting mid-sentence):
+        1. Last '. ' (sentence end) before the chunk_size limit
+        2. Last '\n' (paragraph break) if no sentence boundary found
+        3. Last ' ' (word boundary) if no paragraph break found
+        4. Hard cut at chunk_size if no whitespace found (rare edge case)
+
+    Args:
+        text: raw document content to split
+        chunk_size: max characters per chunk (default 1000)
+        overlap: characters repeated between consecutive chunks (default 150)
+
+    Returns:
+        List of non-empty string chunks, ordered as they appear in the document
   """
   chunks = []
   start = 0
@@ -46,9 +56,14 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150) -> list[st
 
 def embed_text(text: str) -> list[float]:
   """
-  Converts text to a vector of 1536 floats using OpenAI's embedding model
-  This vector captures the semantic meaning of text through similar vectors
-  cosine similarity
+  Converts a text string into a 1536-dimensional embedding vector.
+  Uses OpenAI's text-embedding-3-small model.
+
+  Args:
+    text: the chunk text to embed
+
+  Returns:
+    List of 1536 floats representing the semantic meaning of the text
   """
 
   response = client.embeddings.create(
@@ -63,11 +78,24 @@ def ingest_document(document_id: int):
   Full ingestion pipeline for documtns when created
   Runs as a background task the moment a document is created and submitted to database
 
-  1. Retrieve matching document from DB
-  2. Chunk raw content of document into smaller chunks
-  3. Embed chunks into vectors
-  4. Store chunks and embeddings to document_chunks table in DB
-  5. Update Document DB object status attribute to ready
+  Pipeline steps:
+        1. Fetch document from DB — early return if not found
+        2. Chunk raw_content into overlapping text segments
+        3. Embed each chunk via OpenAI API → 1536-dimensional vector
+        4. Save each chunk + embedding as a DocumentChunk row
+        5. Update document status to 'ready' and set chunk_count
+        6. On any failure → set status to 'failed' so UI can show error state
+
+    Error handling strategy:
+        - Per-chunk errors (OpenAI timeout, rate limit): log and skip that chunk,
+          continue processing remaining chunks. Document still becomes 'ready'
+          with slightly fewer chunks rather than failing entirely.
+        - Pipeline-level errors (DB connection lost, document deleted mid-ingestion):
+          caught by outer except, status set to 'failed', full traceback logged.
+        - Session always closed in finally block to prevent connection pool leaks.
+
+    Args:
+        document_id: ID of the document to ingest (passed by BackgroundTasks)
   """
 
   db: Session = SessionLocal()
@@ -81,8 +109,6 @@ def ingest_document(document_id: int):
     logger.info(f"Ingestion started: document_id={document_id} title='{document.title}'")
     chunks = chunk_text(document.raw_content)
     logger.info(f"Chunking Complete: {len(chunks)} chunks created for Document {document_id}")
-
-
 
     for index, chunk_text_content in enumerate(chunks):
 

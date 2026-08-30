@@ -1,3 +1,19 @@
+"""
+app/routers/documents.py
+
+CRUD endpoints for managing documents in a user's knowledge base.
+
+All endpoints require authentication (JWT Bearer token via get_current_user).
+All queries filter by current_user.id — users can only access their own documents.
+
+Routes:
+    POST   /documents/          create document + trigger ingestion
+    GET    /documents/          list documents (paginated)
+    GET    /documents/{id}      get single document
+    PATCH  /documents/{id}      update document title
+    DELETE /documents/{id}      delete document + cascade chunks
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -22,6 +38,14 @@ def create_document(
   db: Session = Depends(get_db),
   current_user: User = Depends(get_current_user)
   ):
+
+  """
+    Saves a new document and triggers the ingestion pipeline as a background task.
+
+    Returns immediately with status='processing' — ingestion (chunking + embedding)
+    runs asynchronously after the response is sent. Poll GET /documents/{id}
+    until status changes to 'ready' before using the document in chat.
+  """
   word_count = len(data.raw_content.split())
 
   document = Document(
@@ -37,10 +61,8 @@ def create_document(
   db.commit()
   db.refresh(document)
 
-    # trigger ingestion pipeline as background task
-    # we'll implement this function in feature/ingestion
-    # background_tasks.add_task(ingest_document, document.id)
-
+    # kick off ingestion after commit — document.id is now available
+    # runs after this response is returned, not before
   background_tasks.add_task(ingest_document, document.id)
 
   logger.info(f"Document created: id={document.id} user={current_user.email}")
@@ -53,6 +75,13 @@ def list_documents(
   db: Session = Depends(get_db),
   current_user: User = Depends(get_current_user)
 ):
+  """
+    Returns a paginated list of the current user's documents, newest first.
+
+    total reflects the full count across all pages — use it to calculate
+    whether more pages exist: has_more = (page * page_size) < total
+  """
+
   offset = (page - 1) * page_size
   total = db.query(Document).filter(Document.user_id == current_user.id).count()
 
@@ -67,7 +96,7 @@ def list_documents(
 
   return {
     "documents": documents,
-    "total": total,
+    "total": total, # total documents
     "page": page,
     "page_size": page_size
   }
@@ -78,6 +107,13 @@ def get_document(
   db: Session = Depends(get_db),
   current_user: User = Depends(get_current_user)
 ):
+
+  """
+    Returns a single document by ID.
+
+    Filters by both document_id AND user_id — a user cannot access
+    another user's document even if they know the ID.
+  """
   document = db.query(Document).filter(Document.user_id == current_user.id).filter(Document.id == document_id).first()
 
   if not document:
@@ -92,6 +128,14 @@ def delete_document(
   db: Session = Depends(get_db),
   current_user: User = Depends(get_current_user)
 ):
+
+  """
+    Deletes a document and all associated chunks (cascade).
+
+    Returns 204 No Content on success — no response body.
+    Cascade deletion of DocumentChunk rows is handled automatically
+    by the relationship cascade defined in the Document model.
+  """
 
   document = (
     db.query(Document)
@@ -112,6 +156,13 @@ def update_document(
   db: Session = Depends(get_db),
   current_user: User = Depends(get_current_user)
 ):
+
+  """
+    Updates the document title only.
+
+    raw_content and source_url cannot be updated — changing content would
+    invalidate existing embeddings. Delete and re-upload to change content.
+  """
 
   document= db.query(Document).filter(Document.id == document_id, current_user.id == Document.user_id).first()
   if not document:
