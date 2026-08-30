@@ -10,3 +10,8 @@ __pycache__/
 
 *.log
 app.log
+
+
+frontend/node_modules
+frontend/.next
+frontend/.env.local
