@@ -53,7 +53,6 @@ class ConversationResponse(BaseModel):
   messages: list[MessageResponse] = []
 
 
-
 class ConversationSummary(BaseModel):
   model_config = ConfigDict(from_attributes=True)
 

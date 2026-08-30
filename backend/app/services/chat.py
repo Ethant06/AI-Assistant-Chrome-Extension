@@ -16,8 +16,6 @@ but doesn't permanently commit the transaction. This means if something fails la
 the whole thing rolls back cleanly. You commit once at the very end when everything is ready.
 """
 
-
-
 # Step 1: Embed the user question
 def embed_question(question: str) -> list[float]:
   """
@@ -33,7 +31,6 @@ def embed_question(question: str) -> list[float]:
   )
 
   return response.data[0].embedding
-
 
 # Step 2: Retrieve Relevant Chunks
 def retrieve_chunks(
@@ -206,13 +203,16 @@ def save_messages(conversation: Conversation, question: str, answer: str, chunks
     db.add(assistantMessage)
     db.flush() # get assistant_message.id
 
+    seen_document_ids = set()
     for chunk in chunks:
-      source = MessageSource(
-        message_id=assistantMessage.id,
-        chunk_id=chunk.id
-      )
+      if chunk.document_id not in seen_document_ids:
+        seen_document_ids.add(chunk.document_id)
+        source = MessageSource(
+          message_id=assistantMessage.id,
+          chunk_id=chunk.id
+        )
 
-      db.add(source)
+        db.add(source)
 
     db.commit()
     logger.info(

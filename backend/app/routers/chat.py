@@ -80,11 +80,13 @@ def chat(
       yield token
 
     full_answer = "".join(accumulated_answer)
+
+    has_answer = "don't have enough information" not in full_answer.lower()
     save_messages(
       conversation=conversation,
       question=request.question,
       answer=full_answer,
-      chunks=chunks,
+      chunks=chunks if has_answer else [],
       db=db
     )
     logger.info(f"Chat complete: conversation_id={conversation.id}")
