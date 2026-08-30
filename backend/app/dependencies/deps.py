@@ -11,7 +11,7 @@ from app.config import SECRET_KEY, ALGORITHM
 logger = logging.getLogger(__name__)
 
 # Tells FastAPI to extract the Bearer token from the Authorization header.
-# tokenUrl points to the login endpoint
+# This object knows how to look for a bearer token in an incoming HTTP request. tokenUrl is just a metadata about where tokens are obtained
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 def get_current_user(

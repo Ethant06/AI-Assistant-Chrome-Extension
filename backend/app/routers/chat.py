@@ -186,7 +186,6 @@ def delete_conversation(
   db: Session = Depends(get_db),
   current_user: User = Depends(get_current_user)
 ):
-
   """
     Deletes a conversation and all its messages (cascade).
   """
