@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, documents
+from app.routers import auth, documents, chat
 from app.dependencies.deps import get_current_user
 import time
 import logging
@@ -38,6 +38,7 @@ async def log_requests(request: Request, call_next):
 
 app.include_router(auth.router)
 app.include_router(documents.router)
+app.include_router(chat.router)
 
 @app.get("/")
 def check(user = Depends(get_current_user)):

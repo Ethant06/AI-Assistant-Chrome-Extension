@@ -1,3 +1,4 @@
+# Virtual Environment
 .venv
 venv/
 __pycache__/
@@ -6,3 +7,6 @@ __pycache__/
 # Environmental Variables
 .env
 
+
+*.log
+app.log
