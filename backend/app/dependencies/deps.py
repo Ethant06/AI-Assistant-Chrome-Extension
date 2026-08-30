@@ -9,12 +9,24 @@ import logging
 from app.config import SECRET_KEY, ALGORITHM
 
 logger = logging.getLogger(__name__)
+
+# Tells FastAPI to extract the Bearer token from the Authorization header.
+# tokenUrl points to the login endpoint
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 def get_current_user(
   token: str = Depends(oauth2_bearer),
   db: Session = Depends(get_db),
 ):
+
+  """
+  FastAPI dependency that authenticates the current user from their JWT token.
+
+  Used on every protected endpoint via Depends(get_current_user). This returns a User object if valid, raises 401 if not.
+  """
+
+   # reusable 401 exception — raised for any auth failure
+  # WWW-Authenticate header tells the client what auth scheme is expected
   credential_exception = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="Invalid or expired token",
