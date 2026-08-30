@@ -21,7 +21,6 @@ def get_current_user(
 
   """
   FastAPI dependency that authenticates the current user from their JWT token.
-
   Used on every protected endpoint via Depends(get_current_user). This returns a User object if valid, raises 401 if not.
   """
 

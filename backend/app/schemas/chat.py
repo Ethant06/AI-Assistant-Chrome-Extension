@@ -5,37 +5,35 @@ from typing import Optional
 
 class ChatRequest(BaseModel):
   """
-  What the client sends when asking a question.
+  input schema for POST/chat/
 
-  question: the user's actual question
-  conversation_id: optional - if provided, adds to existing conversation - Else starts a new conversation
+  conversation_id is optional - null starts a new conversation,
+  an existing ID continues that conversation thread
   """
-
   question: str
   conversation_id: Optional[int] = None
 
 
 class SourceResponse(BaseModel):
   """
-  Represents one cited source in an answer.
-  Shown below the AI response so user knows where the answer came from.
+  One cited document shown below an assistant message.
 
-  chunk_id: which specific chunk was used
-  document_title: human readable name of the source document
-  source_url: link back to original page if it came from a url
-  relevance_score: how similar this chunk was to the question (0 - 1)
+  Populated via @property methods on MessageSource model - these fields do not exist directly
+  on MessageSource but are traversded from Chunk -> document at serialization time.
   """
   model_config = ConfigDict(from_attributes=True)
 
   document_id: int
   document_title: str
-  source_url: Optional[str] = None
+  source_url: Optional[str] = None # make clickable if not null
 
 
 class MessageResponse(BaseModel):
   """
   One message in a conversation.
-  Role is either user or assistant
+
+  role is always "user" or "assistant"
+  sources exist only for assistant
   """
   id: int
   role: str
@@ -45,6 +43,10 @@ class MessageResponse(BaseModel):
 
 
 class ConversationResponse(BaseModel):
+  """
+  full conversation with all messages and citations.
+  Used by GET / CHAT/conversations/{id} in routers/chat
+  """
   model_config = ConfigDict(from_attributes=True)
 
   id: int
@@ -54,6 +56,13 @@ class ConversationResponse(BaseModel):
 
 
 class ConversationSummary(BaseModel):
+  """
+  Lightweight conversation object for list views.
+  Used inside ConversationListResponse for GET /chat/conversations/
+
+  Intentionally excludes messages - loading all messages just for a sidebar of conversation is wasteful.
+  We only use ConversationResponse when the full conversation is needed.
+  """
   model_config = ConfigDict(from_attributes=True)
 
   id: int
@@ -62,5 +71,10 @@ class ConversationSummary(BaseModel):
 
 
 class ConversationListResponse(BaseModel):
+  """
+  Paginated list of conversations for GET /chat/conversations/
+  Ordered by created_at descending (newest first)
+  """
+
   conversations: list[ConversationSummary]
-  total: int
+  total: int # total count across all pages, not just this page.

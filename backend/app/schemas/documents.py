@@ -1,21 +1,38 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional
 
 
 class DocumentUpdate(BaseModel):
+  """
+  Input schema for PATCH /documents/{id}
+
+  Only title can be updated - changing source-url or raw_content would invalidate existing embeddings.
+  """
   title: str
 
 
-# What the client sends when saving a document
-# notice raw_content is never in documentresponse since we never send full raw content back into list responses since it can be thousands of words
 class DocumentCreate(BaseModel):
+  """
+  Input schema for POST /documents/
+
+  raw_content is required - the full text to chunk and embed
+  """
+
   title: str
   source_url: Optional[str] = None
   raw_content: str
 
-# what the client gets back for a single document
+
 class DocumentResponse(BaseModel):
+  """
+  Output schema for single document
+
+  raw_content is excluded since it can be thousands of words and is never displayed by frontend
+
+  """
+  model_config = ConfigDict(from_attributes=True)
+
   id: int
   title: str
   source_url: Optional[str] = None
@@ -24,12 +41,14 @@ class DocumentResponse(BaseModel):
   chunk_count: Optional[int] = None
   created_at: datetime
 
-  class Config:
-    from_attributes = True
 
-
-# what the client gets back when listing documents (paginated)
 class DocumentListResponse(BaseModel):
+  """
+  Output schema for GET /documents/
+
+  Paginated - use page and page_size query parans to navigate.
+  """
+
   documents: list[DocumentResponse]
   total: int
   page: int

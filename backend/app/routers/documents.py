@@ -67,7 +67,7 @@ def list_documents(
 
   return {
     "documents": documents,
-    "total": total,
+    "total": total, # total documents
     "page": page,
     "page_size": page_size
   }

@@ -19,10 +19,13 @@ the whole thing rolls back cleanly. You commit once at the very end when everyth
 # Step 1: Embed the user question
 def embed_question(question: str) -> list[float]:
   """
-  embeds user's question into a vector so that it can be
-  compared to document embeddings to find the most similar context to use
-  for prompt augmentation
-  Uses the same model as document ingestion for consistency.
+  Converts the user's question into a 1536-dimensional embedding vector.
+
+  Args:
+        question: the raw question string from the user
+
+    Returns:
+        List of 1536 floats representing the question's semantic meaning
   """
 
   response = client.embeddings.create(
@@ -40,13 +43,24 @@ def retrieve_chunks(
   top_k: int = 5
 ) -> list[DocumentChunk]:
   """
-    Find the most semantically similar chunks to the question.
+    Finds the most semantically relevant document chunks for the question.
 
-    Uses pgvector's <=> operator (cosine distance).
-    Lower distance = more similar = more relevant.
+    Uses pgvector's <=> cosine distance operator — lower distance means
+    higher similarity means more relevant. Results are ordered most
+    relevant first, so chunks[0] is always the best match.
 
-    Filters by user_id so users only search their own documents.
-    Filters by status='ready' so only fully ingested documents are searched.
+    Two filters applied for correctness and security:
+    - user_id: users can only search their own documents (never another user's)
+    - status='ready': skips documents still processing or failed ingestion
+
+    Args:
+        embedding_question: 1536-dim vector of the embedded question
+        user_id: authenticated user's ID — scopes search to their documents only
+        db: SQLAlchemy session
+        top_k: number of chunks to return (default 5)
+
+    Returns:
+        List of DocumentChunk objects ordered by relevance (most relevant first)
   """
   chunks = (
     db.query(DocumentChunk)
@@ -61,7 +75,17 @@ def retrieve_chunks(
 
 def build_context(chunks: list[DocumentChunk]) -> str:
   """
-  Format retrieved chunks into a context string for the LLM prompt.
+  Formats retrieved chunks into a numbered context string for the LLM prompt.
+
+    Each chunk is labeled [Source N] so the LLM can reference which source
+    supports each part of its answer. The numbering corresponds to retrieval
+    rank — [Source 1] is always the most relevant chunk.
+
+    Args:
+        chunks: retrieved DocumentChunk objects, ordered by relevance
+
+    Returns:
+        Single string with all chunks joined by double newlines
   """
 
   context_parts = []
@@ -74,11 +98,20 @@ def build_context(chunks: list[DocumentChunk]) -> str:
 # Step 3: Generate streamed answer
 def generate_answer_stream(question: str, chunks: list[DocumentChunk]):
   """
-    Generator function that streams tokens from OpenAI.
+    Generator that streams GPT-4o tokens as they are generated.
 
-    Why a generator? Because we want to yield tokens as they arrive
-    rather than waiting for the complete response. This is what makes
-    the "words appearing one by one" effect possible.
+    Why a generator with yield instead of returning the full answer?
+    OpenAI sends the response token by token as it generates. yield passes
+    each token to the caller immediately rather than waiting for completion.
+    This is what produces the "words appearing one by one" effect in the UI.
+
+    "I don't know" handling: if no chunks were retrieved (user asked about
+    something not in their documents), skip the OpenAI call entirely and
+    yield a clear message. This prevents hallucination — the LLM is never
+    called without grounding context.
+
+    Yields:
+        Individual token strings as they arrive from OpenAI's streaming API
   """
 
   if not chunks:
@@ -139,14 +172,31 @@ def get_or_create_conversation(
   db: Session
   ) -> Conversation:
     """
-      Either retrieve an existing conversation or create a new one.
+    Returns an existing conversation or creates a new one.
 
-      If conversation_id is provided → user is continuing an existing chat
-      If conversation_id is None → start a fresh conversation
+    Two paths:
+    - conversation_id provided → fetch and verify it belongs to this user.
+      If not found (deleted or wrong user), fall through to create a new one.
+    - conversation_id is None → always create a new conversation.
 
-      The title is set to the first question asked — gives the conversation
-      a meaningful name in the UI ("How do B-tree indexes work?")
-      rather than "Untitled conversation".
+    Title is set to the first question, truncated to 100 chars.
+    This gives conversations a meaningful sidebar label without
+    requiring a separate title input from the user.
+
+    Why db.flush() instead of db.commit()?
+    flush() sends the INSERT to the DB and returns the auto-generated
+    conversation.id without permanently committing the transaction.
+    The full commit happens in save_messages() after everything is saved,
+    keeping the entire interaction atomic — either all saves succeed or none do.
+
+    Args:
+        user_id: authenticated user's ID
+        conversation_id: existing conversation to continue, or None for new
+        question: the user's question — used as the conversation title if new
+        db: SQLAlchemy session
+
+    Returns:
+        Conversation object (existing or newly created)
     """
 
     if conversation_id:
@@ -173,16 +223,26 @@ def get_or_create_conversation(
 
 def save_messages(conversation: Conversation, question: str, answer: str, chunks: list[DocumentChunk], db: Session):
     """
-    Save the user's question and the AI's answer to the database.
-    Also saves which chunks were cited (MessageSource rows).
+    Persists the full conversation turn to the database after streaming completes.
 
-    Called AFTER streaming completes — we need the full answer
-    text before we can save it. You can't save half an answer.
+    Called only after streaming finishes — the complete answer text is needed
+    before saving. Saving mid-stream would store an incomplete response.
 
-    Why save message sources?
-    - Powers the citations UI ("Source: PostgreSQL Guide")
-    - Lets you build the eval harness later
-    - Shows users WHERE the answer came from
+    Saves three things atomically in one commit:
+    1. User message (role='user', no sources)
+    2. Assistant message (role='assistant', with sources)
+    3. MessageSource rows — one per unique cited document
+
+    Source deduplication: multiple chunks from the same document produce only
+    one MessageSource row. seen_document_ids tracks which documents have been
+    cited to prevent duplicate citations in the UI.
+
+    Args:
+        conversation: the Conversation object to attach messages to
+        question: the user's original question text
+        answer: the complete streamed answer (accumulated after streaming)
+        chunks: retrieved chunks used as context (empty if no answer found)
+        db: SQLAlchemy session (shared with get_or_create_conversation)
     """
 
     # save user message
