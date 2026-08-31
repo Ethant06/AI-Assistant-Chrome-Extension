@@ -13,6 +13,7 @@ Required environment variables (must be set in .env):
     AUTH_ALGORITHM               — JWT signing algorithm (e.g. "HS256")
     OPENAI_API_KEY               — OpenAI API key for embeddings and chat
     ACCESS_TOKEN_EXPIRE_MINUTES  — JWT expiry in minutes (defaults to 30)
+    ENVIRONMENT                  "development" or "production"
 """
 
 from pathlib import Path
@@ -27,3 +28,7 @@ SECRET_KEY = os.getenv("AUTH_SECRET_KEY")
 ALGORITHM = os.getenv("AUTH_ALGORITHM")
 EXPIRE_MIN = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 OPEN_AI_KEY = os.getenv("OPENAI_API_KEY")
+
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+IS_PRODUCTION = ENVIRONMENT == "production"
