@@ -36,10 +36,9 @@
 400 — Email already registered
 422 — Missing email or password
 ```
-
 ---
 
-## *Login Endpoint*
+## *Login Endpoint (Web App)*
 
 **Request Format:** `/auth/login`
 
@@ -47,7 +46,60 @@
 
 **Returned Data Format:** JSON object
 
-**Description:** Authenticates the user's credentials and returns a JWT access token. Store the access_token client-side and attach it to every subsequent protected request as a Bearer token.
+**Description:** Authenticates the user's credentials and sets an httpOnly cookie containing the JWT. The token is NOT returned in the response body — it lives in a cookie that JavaScript cannot read, protecting against XSS token theft. The browser stores and sends this cookie automatically on subsequent requests.
+
+**Cookie flags set:**
+```
+httponly = true          JavaScript cannot read the cookie (XSS protection)
+secure   = true in prod  HTTPS-only when deployed; disabled locally (HTTP)
+samesite = lax           Blocks cross-site fetch requests (CSRF protection)
+max_age  = 1800          Matches JWT expiry (30 minutes)
+```
+
+**Example Request:**
+```json
+{
+    "username": "user@example.com",
+    "password": "securepassword"
+}
+```
+
+**Example Response:**
+```json
+{
+    "message": "Logged in successfully"
+}
+```
+
+**Frontend usage:** every subsequent request must include `credentials: "include"` so the browser sends the cookie:
+```javascript
+await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ email, password })
+})
+```
+
+**Note:** because the cookie is httpOnly, JavaScript cannot check whether the user is logged in by reading it. Call `GET /auth/me` to verify authentication status.
+
+**Error Handling:**
+```
+401 — Invalid email or password
+422 — Missing email or password
+```
+
+---
+
+## *Login Endpoint (Chrome Extension)*
+
+**Request Format:** `/auth/login/token`
+
+**Request Type:** POST
+
+**Returned Data Format:** JSON object
+
+**Description:** Alternative login for the Chrome extension. Returns the raw JWT in the response body instead of setting a cookie. Chrome extensions run on a `chrome-extension://` origin, which the browser treats as cross-site relative to this API — cookies set with `samesite="lax"` are not sent from that origin. The extension stores this token in `chrome.storage.local` and attaches it manually as a Bearer header on every request.
 
 **Example Request:**
 ```json
@@ -65,9 +117,56 @@
 }
 ```
 
+**Extension usage:**
+```javascript
+// store after login
+await chrome.storage.local.set({ token: access_token })
+
+// attach on every request
+const { token } = await chrome.storage.local.get("token")
+await fetch(`${API_URL}/documents/`, {
+    headers: { "Authorization": `Bearer ${token}` }
+})
+```
+
 **Error Handling:**
 ```
 401 — Invalid email or password
+422 — Missing email or password
+```
+
+---
+
+## *Logout Endpoint*
+
+**Request Format:** `/auth/logout`
+
+**Request Type:** POST
+
+**Returned Data Format:** JSON object
+
+**Description:** Clears the auth cookie. Only relevant for the web app — the Chrome extension logs out by clearing its own `chrome.storage.local`, which requires no server call since the server holds no session state.
+
+**Example Request:** No body
+
+**Example Response:**
+```json
+{
+    "message": "Logged out successfully"
+}
+```
+
+**Frontend usage:**
+```javascript
+await fetch(`${API_URL}/auth/logout`, {
+    method: "POST",
+    credentials: "include"
+})
+```
+
+**Error Handling:**
+```
+None — always succeeds, even if no cookie was set
 ```
 
 ---
