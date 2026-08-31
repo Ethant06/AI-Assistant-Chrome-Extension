@@ -14,9 +14,9 @@ class UserRegister(BaseModel):
 
 class UserLogin(BaseModel):
   """
-  Input schema for POST /auth/login
+  Input schema for POST /auth/login and POST /auth/login/token
   """
-  email: EmailStr
+  username: EmailStr
   password: str
 
 class UserResponse(BaseModel):
@@ -32,10 +32,15 @@ class TokenResponse(BaseModel):
 
   access_token is a signed JWT - store client-side (localStorage or httpOnly coookie)
   and used in authrorization body on every protected request.
-
-
   """
 
   access_token: str
   token_type: str = "bearer"
+
+class MessageResponse(BaseModel):
+    """
+    Generic success message for endpoints that return no data.
+    Used by /auth/login (token is in the cookie) and /auth/logout.
+    """
+    message: str
 
