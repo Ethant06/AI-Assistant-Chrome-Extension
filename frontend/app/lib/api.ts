@@ -40,7 +40,7 @@ const jsonHeaders: HeadersInit = {
  * FastAPI returns errors as { "detail": "message" }, so we extract that
  * for display in the UI. 204 responses have no body to parse.
  */
-async function handleResponse<T>(res: Response): Promise<T | undefined> {
+async function handleResponse<T>(res: Response): Promise<T> {
 
   // Did the backend return an error?
     if (!res.ok) {
@@ -52,7 +52,7 @@ async function handleResponse<T>(res: Response): Promise<T | undefined> {
     }
     // was it successful but with no data?
     if (res.status === 204) {
-        return undefined
+        return undefined as T
     }
 
     // otherwise get the successful JSON data
@@ -126,7 +126,6 @@ export async function getCurrentUser(): Promise<User> {
 }
 
 
-
 // ─── Documents ──────────────────────────────────────
 
 /**
@@ -196,3 +195,56 @@ export async function deleteDocument(id: number): Promise<void> {
 }
 
 // ─── Chat ───────────────────────────────────────────
+
+export async function sendChatRequest(
+  data: ChatRequest,
+  onToken: (token: string) => void
+): Promise<void> {
+  const res = await fetch(`${API_URL}/chat/`, {
+    method: "POST",
+    headers: jsonHeaders,
+    credentials: "include",
+    body: JSON.stringify(data)
+  })
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({detail: "Chat request failed"}))
+    throw new Error(error.detail)
+  }
+
+  const reader = res.body?.getReader() //our chatbot is streaming so we ask for the response body as a stream to read piece-by-piece
+
+  if (!reader) throw new Error("Streaming not supported")
+
+    const decoder = new TextDecoder()
+
+    while (true) {
+      const { done, value } = await reader.read()
+
+      if (done) break
+      onToken(decoder.decode(value))
+    }
+}
+
+
+export async function listConversations(): Promise<ConversationListResponse> {
+  const res = await fetch(`${API_URL}/chat/conversations/`, {
+    credentials: "include",
+  })
+  return handleResponse<ConversationListResponse>(res)
+}
+
+export async function getConversation(id: number): Promise<Conversation> {
+  const res = await fetch(`${API_URL}/chat/conversations/${id}`, {
+    credentials: "include",
+  })
+  return handleResponse<Conversation>(res)
+}
+
+export async function deleteConversation(id: number): Promise<void> {
+  const res = await fetch(`${API_URL}/chat/conversations/${id}`, {
+    method: "DELETE",
+    credentials: "include"
+  })
+  return handleResponse<void>(res)
+}
