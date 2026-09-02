@@ -20,7 +20,7 @@ import type {
     MessageResponse,
 } from "@/types/api"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
 
 /**
@@ -48,7 +48,11 @@ async function handleResponse<T>(res: Response): Promise<T> {
        // Try to get FastAPI's error message, res is possibly a json object with detail = ... attribute
        // catch is a fallback
         const error = await res.json().catch(() => ({ detail: "Request failed" }))
-        throw new Error(error.detail || `HTTP ${res.status}`)
+        const detail = error.detail
+        const message = Array.isArray(detail)
+          ? detail.map((item: { msg?: string }) => item.msg ?? JSON.stringify(item)).join(", ")
+          : detail || `HTTP ${res.status}`
+        throw new Error(message)
     }
     // was it successful but with no data?
     if (res.status === 204) {

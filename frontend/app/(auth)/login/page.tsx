@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type SyntheticEvent } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
@@ -37,7 +37,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
 
 
-  async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
+  async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
     setLoading(true)
@@ -64,7 +64,7 @@ export default function LoginPage() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="email">Email</label>
+            <Label htmlFor="email">Email</Label>
             <Input
             id="email"
             type="email"
@@ -77,7 +77,7 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="password">Password</label>
+            <Label htmlFor="password">Password</Label>
             <Input
             id="password"
             type="password"
