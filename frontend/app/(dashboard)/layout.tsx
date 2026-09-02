@@ -18,8 +18,6 @@ export default function DashboardLayout({children}: {children: React.ReactNode})
   )
 }
 
-
-
 /**
  * Inner component — separate so it can call useAuth, which requires
  * being inside the provider.
