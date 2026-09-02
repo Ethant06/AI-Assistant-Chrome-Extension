@@ -16,7 +16,6 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
-import { ThemeToggle } from "@/components/ui/ThemeToggle"
 
 
 
@@ -36,4 +35,82 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+
+  async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+
+    try {
+      await login(email, password)
+      router.push("/documents")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl">PagePilot</CardTitle>
+        <CardDescription>Sign in to your account</CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="email">Email</label>
+            <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+            autoComplete="email"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="password">Password</label>
+            <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            required
+            autoComplete="current-password"
+            />
+          </div>
+
+          {error && (<p className="text-sm text-destructive">{error}</p>)}
+
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading && <Loader2 className="size-4 animate-spin"/>}
+            Sign in
+          </Button>
+        </form>
+      </CardContent>
+
+
+      <CardFooter className="justify-center">
+        <p className="text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="text-foreground underline underline-offset-4">Register</Link>
+        </p>
+      </CardFooter>
+    </Card>
+  )
+
+
+
+
+
+
 }
