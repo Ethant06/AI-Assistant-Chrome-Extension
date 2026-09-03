@@ -39,9 +39,18 @@ export function NavBar() {
                 <Bell className="size-5 text-muted-foreground" />
 
                 <DropdownMenu>
-                    <DropdownMenuTrigger render={<Avatar className="cursor-pointer size-8" />}>
-                      <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-                </DropdownMenuTrigger>
+                    <DropdownMenuTrigger
+                        render={
+                            <button
+                                type="button"
+                                className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                            />
+                        }
+                    >
+                        <Avatar className="size-8">
+                            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                        </Avatar>
+                    </DropdownMenuTrigger>
 
                     <DropdownMenuContent sideOffset={10} align="end" className="w-56">
                         <DropdownMenuGroup>
