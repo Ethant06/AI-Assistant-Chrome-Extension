@@ -171,3 +171,31 @@ def update_document(
   db.commit()
   db.refresh(document)
   return document
+
+
+
+
+"""
+THIS IS TO BE ADDED LATER ON FOR FULL CONTENT DISPLAY
+@router.get("/{document_id}/content")
+def get_document_content(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    Returns a document's full raw content.
+
+    Separate from GET /documents/{id} because raw_content can be tens of
+    thousands of characters — including it in every list and detail
+    response would bloat payloads for data that's rarely needed.
+    document = (
+        db.query(Document)
+        .filter(Document.id == document_id, Document.user_id == current_user.id)
+        .first()
+    )
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return {"id": document.id, "title": document.title, "raw_content": document.raw_content}
+
+"""

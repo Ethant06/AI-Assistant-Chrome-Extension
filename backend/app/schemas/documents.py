@@ -40,6 +40,7 @@ class DocumentResponse(BaseModel):
   word_count: Optional[int] = None
   chunk_count: Optional[int] = None
   created_at: datetime
+  excerpt: Optional[str] = None #first ~200 characters of raw_content
 
 
 class DocumentListResponse(BaseModel):
