@@ -149,7 +149,6 @@ export async function createDocument(data: DocumentCreateRequest): Promise<Docum
 }
 
 
-
 /**
  * Returns a paginated list of the user's documents, newest first
  */

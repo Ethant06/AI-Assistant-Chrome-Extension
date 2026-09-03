@@ -36,14 +36,14 @@ export function NavBar() {
     return (
         <nav className="h-14 shrink-0 border-b bg-card px-4 flex items-center justify-end">
             <div className="flex items-center gap-4">
-                <Bell className="size-5 text-muted-foreground" />
+                <Bell className="cursor-pointer size-5 text-muted-foreground" />
 
                 <DropdownMenu>
                     <DropdownMenuTrigger
                         render={
                             <button
                                 type="button"
-                                className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                                className="cursor-pointer rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                             />
                         }
                     >

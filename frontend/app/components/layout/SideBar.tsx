@@ -36,7 +36,7 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-    { title: "Documents", url: "/documents", icon: FileText },
+    { title: "Library", url: "/documents", icon: FileText },
     { title: "Chat", url: "/chat", icon: MessageSquare },
 ]
 
@@ -99,7 +99,7 @@ export function AppSidebar() {
                     <div className="flex items-center gap-2 px-1 group-data-[collapsible=icon]:hidden">
                         <Brain className="size-5 shrink-0 text-primary" />
                         <span className="font-semibold whitespace-nowrap">
-                            Knowledge Base
+                            PagePilot
                         </span>
                     </div>
                     <SidebarTrigger />
