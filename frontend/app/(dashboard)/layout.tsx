@@ -2,7 +2,9 @@
 
 import { Loader2 } from "lucide-react"
 import { AuthProvider, useAuth } from "@/components/providers/AuthProvider"
-
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { AppSidebar } from "@/components/layout/SideBar"
+import { NavBar } from "@/components/layout/NavBar"
 
 /**
  * Layout for all authenticated pages.
@@ -17,8 +19,6 @@ export default function DashboardLayout({children}: {children: React.ReactNode})
     </AuthProvider>
   )
 }
-
-
 
 /**
  * Inner component — separate so it can call useAuth, which requires
@@ -39,5 +39,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   if (!user) return null
 
-  return <div className="min-h-screen">{children}</div>
+  return (
+      <SidebarProvider>
+          <AppSidebar />
+          <SidebarInset>
+              <NavBar />
+              <main className="flex-1 overflow-y-auto">{children}</main>
+          </SidebarInset>
+      </SidebarProvider>
+  )
 }

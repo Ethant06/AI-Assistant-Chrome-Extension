@@ -20,7 +20,9 @@ import type {
     MessageResponse,
 } from "@/types/api"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+// Same-origin prefix so the auth cookie is first-party.
+// next.config.ts rewrites /backend/* to the FastAPI server.
+const API_URL = "/backend"
 
 
 /**
@@ -147,7 +149,6 @@ export async function createDocument(data: DocumentCreateRequest): Promise<Docum
   })
   return handleResponse<Document>(res)
 }
-
 
 
 /**
