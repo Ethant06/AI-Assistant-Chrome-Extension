@@ -43,7 +43,7 @@ export default function DocumentsPage() {
     <div className="mx-auto max-w-5xl p-8">
         <header className="mb-8 flex items-center justify-between gap-5">
             <div>
-                <h1 className="text-2xl font-semibold">Documents</h1>
+                <h1 className="text-2xl font-semibold">Library</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                     {loading
                         ? "Loading..."
