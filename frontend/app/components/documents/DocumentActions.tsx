@@ -1,4 +1,15 @@
 // components/documents/DocumentActions.tsx
+/**
+ * Per-document action menu — rename, open source, delete.
+ *
+ * Owns the visibility of its two dialogs (local UI state), but not the
+ * mutations. Those are passed in from the page, which owns the document
+ * list and must update it after either action completes.
+ *
+ * Attaches the document ID to the rename callback before passing it to
+ * RenameDialog, so the dialog itself stays generic — it collects a title
+ * string and knows nothing about documents or the API.
+ */
 "use client"
 
 import { useState } from "react"
