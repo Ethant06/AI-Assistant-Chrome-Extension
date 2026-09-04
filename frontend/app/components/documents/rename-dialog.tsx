@@ -1,4 +1,4 @@
-// components/documents/RenameDialog.tsx
+// components/documents/rename-dialog.tsx
 "use client"
 
 import { useEffect, useState, type SyntheticEvent } from "react"

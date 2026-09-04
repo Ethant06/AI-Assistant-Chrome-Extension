@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { FileText, Plus, CircleAlert } from "lucide-react"
-import { listDocuments  } from "@/lib/api"
+import { deleteDocument, listDocuments, updateDocument } from "@/lib/api"
 import { DocumentCard } from "@/components/documents/DocumentCard"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -38,6 +38,18 @@ export default function DocumentsPage() {
     .finally(() => setLoading(false))
   }, [])
 
+  async function handleRename(id: number, title: string) {
+    const updated = await updateDocument(id, { title })
+    setDocuments((prev) =>
+      prev.map((doc) => (doc.id === id ? { ...doc, ...updated } : doc))
+    )
+  }
+
+  async function handleDelete(id: number) {
+    await deleteDocument(id)
+    setDocuments((prev) => prev.filter((doc) => doc.id !== id))
+  }
+
 
   return (
     <div className="mx-auto max-w-5xl p-8">
@@ -64,6 +76,8 @@ export default function DocumentsPage() {
             loading={loading}
             error={error}
             onAddClick={() => setDialogOpen(true)}
+            onRename={handleRename}
+            onDelete={handleDelete}
         />
 
         <AddDocumentDialog
@@ -84,12 +98,14 @@ export default function DocumentsPage() {
  * of loading or error state — otherwise early returns in the page would
  * hide the header while loading.
  */
-function DocumentsBody({ documents, loading, error, onAddClick,
+function DocumentsBody({ documents, loading, error, onAddClick, onRename, onDelete,
 }: {
     documents: Document[]
     loading: boolean
     error: string | null
     onAddClick: () => void
+    onRename: (id: number, title: string) => Promise<void>
+    onDelete: (id: number) => Promise<void>
 }) {
     if (loading) {
       return (
@@ -140,7 +156,12 @@ function DocumentsBody({ documents, loading, error, onAddClick,
     return (
         <div className="grid gap-4 sm:grid-cols-2">
             {documents.map((document) => (
-                <DocumentCard key={document.id} document={document} />
+                <DocumentCard
+                    key={document.id}
+                    document={document}
+                    onRename={onRename}
+                    onDelete={onDelete}
+                />
             ))}
         </div>
     )
