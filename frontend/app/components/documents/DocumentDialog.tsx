@@ -142,7 +142,7 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated } : AddDocumen
                   />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 ">
                   <div className="flex items-center justify-between">
                       <Label htmlFor="content">Content</Label>
                       <span className="text-xs text-muted-foreground">
@@ -154,7 +154,7 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated } : AddDocumen
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
                       placeholder="Paste the full text here..."
-                      className="min-h-48 resize-none"
+                      className="min-h-48 max-h-64 resize-none overflow-y-auto"
                       disabled={submitting}
                   />
               </div>

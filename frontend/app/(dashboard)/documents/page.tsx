@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { FileText, Plus, CircleAlert } from "lucide-react"
-import { listDocuments  } from "@/lib/api"
+import { deleteDocument, listDocuments, updateDocument } from "@/lib/api"
 import { DocumentCard } from "@/components/documents/DocumentCard"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Document } from "@/types/api"
+import { AddDocumentDialog } from "@/components/documents/DocumentDialog"
 
 /**
  * Documents page — lists everything the user has saved to their knowledge base.
@@ -37,12 +38,24 @@ export default function DocumentsPage() {
     .finally(() => setLoading(false))
   }, [])
 
+  async function handleRename(id: number, title: string) {
+    const updated = await updateDocument(id, { title })
+    setDocuments((prev) =>
+      prev.map((doc) => (doc.id === id ? { ...doc, ...updated } : doc))
+    )
+  }
+
+  async function handleDelete(id: number) {
+    await deleteDocument(id)
+    setDocuments((prev) => prev.filter((doc) => doc.id !== id))
+  }
+
 
   return (
     <div className="mx-auto max-w-5xl p-8">
         <header className="mb-8 flex items-center justify-between gap-5">
             <div>
-                <h1 className="text-2xl font-semibold">Documents</h1>
+                <h1 className="text-2xl font-semibold">Library</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                     {loading
                         ? "Loading..."
@@ -63,6 +76,16 @@ export default function DocumentsPage() {
             loading={loading}
             error={error}
             onAddClick={() => setDialogOpen(true)}
+            onRename={handleRename}
+            onDelete={handleDelete}
+        />
+
+        <AddDocumentDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          // prepend so the newest document appears first,
+          // matching the API's created_at descending order
+          onCreated={(doc) => setDocuments((prev) => [doc, ...prev])}
         />
     </div>
   )
@@ -75,12 +98,14 @@ export default function DocumentsPage() {
  * of loading or error state — otherwise early returns in the page would
  * hide the header while loading.
  */
-function DocumentsBody({ documents, loading, error, onAddClick,
+function DocumentsBody({ documents, loading, error, onAddClick, onRename, onDelete,
 }: {
     documents: Document[]
     loading: boolean
     error: string | null
     onAddClick: () => void
+    onRename: (id: number, title: string) => Promise<void>
+    onDelete: (id: number) => Promise<void>
 }) {
     if (loading) {
       return (
@@ -131,7 +156,12 @@ function DocumentsBody({ documents, loading, error, onAddClick,
     return (
         <div className="grid gap-4 sm:grid-cols-2">
             {documents.map((document) => (
-                <DocumentCard key={document.id} document={document} />
+                <DocumentCard
+                    key={document.id}
+                    document={document}
+                    onRename={onRename}
+                    onDelete={onDelete}
+                />
             ))}
         </div>
     )
