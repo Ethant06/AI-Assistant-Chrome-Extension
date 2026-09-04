@@ -1,6 +1,5 @@
 "use client"
-
-import { EllipsisVertical } from "lucide-react"
+import { DocumentActions } from "@/components/documents/DocumentActions"
 import { Card, CardContent } from "../ui/card"
 import type { Document } from "@/types/api"
 
@@ -8,6 +7,8 @@ import type { Document } from "@/types/api"
 // expects. The component receives a prop called document and that document must match Document type
 interface DocumentCardProps {
   document: Document
+  onRename: (id: number, title: string) => Promise<void>
+  onDelete: (id: number) => Promise<void>
 }
 
 {
@@ -20,7 +21,7 @@ interface DocumentCardProps {
    * copy source link, and to delete
    */
 }
-export function DocumentCard({ document }: DocumentCardProps) {
+export function DocumentCard({ document, onRename, onDelete }: DocumentCardProps) {
   const createdAt = new Date(document.created_at).toLocaleDateString(
     undefined,
     {
@@ -40,9 +41,11 @@ export function DocumentCard({ document }: DocumentCardProps) {
           <h3 className="font-serif text-base leading-tight">
             {document.title}
           </h3>
-          <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground">
-            <EllipsisVertical className="size-4"></EllipsisVertical>
-          </button>
+          <DocumentActions
+            document={document}
+            onRename={onRename}
+            onDelete={onDelete}
+          />
         </div>
 
 

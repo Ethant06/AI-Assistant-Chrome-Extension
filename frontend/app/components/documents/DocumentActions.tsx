@@ -21,7 +21,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { RenameDialog } from "./renameDialog"
+import { RenameDialog } from "./RenameDialog"
 import type { Document } from "@/types/api"
 
 interface DocumentActionsProps {
