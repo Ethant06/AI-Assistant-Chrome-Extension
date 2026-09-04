@@ -7,6 +7,7 @@ import { DocumentCard } from "@/components/documents/DocumentCard"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Document } from "@/types/api"
+import { AddDocumentDialog } from "@/components/documents/DocumentDialog"
 
 /**
  * Documents page — lists everything the user has saved to their knowledge base.
@@ -63,6 +64,14 @@ export default function DocumentsPage() {
             loading={loading}
             error={error}
             onAddClick={() => setDialogOpen(true)}
+        />
+
+        <AddDocumentDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          // prepend so the newest document appears first,
+          // matching the API's created_at descending order
+          onCreated={(doc) => setDocuments((prev) => [doc, ...prev])}
         />
     </div>
   )
