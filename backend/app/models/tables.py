@@ -41,6 +41,14 @@ class Document(Base):
   chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
   user = relationship('User', back_populates='documents')
 
+  @property
+  def excerpt(self) -> str | None:
+    """First 200 characters of the content, for card previews."""
+    if not self.raw_content:
+      return None
+    text = self.raw_content.strip()
+    return text[:200] if len(text) > 200 else text
+
 class DocumentChunk(Base):
   """
   Stores individual text chunks of a document alongside their vector embeddings.

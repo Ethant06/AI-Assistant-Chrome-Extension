@@ -50,6 +50,7 @@ export interface Document {
     word_count: number | null
     chunk_count: number | null     // null until ingestion completes
     created_at: string             // ISO 8601, e.g. "2026-08-29T16:28:18.968689"
+    excerpt: string | null
 }
 
 
