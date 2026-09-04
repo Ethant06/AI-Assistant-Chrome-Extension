@@ -1,7 +1,7 @@
 // components/documents/RenameDialog.tsx
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type SyntheticEvent } from "react"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -55,7 +55,7 @@ export function RenameDialog({
         }
     }, [open, currentTitle])
 
-    async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
+    async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
         e.preventDefault()
         setError(null)
 
