@@ -43,40 +43,42 @@ export function DocumentCard({ document, onRename, onDelete }: DocumentCardProps
   )
 
   return (
-    <Card className='group cursor-pointer transition-colors hover:bg-accent/50'>
-      <CardContent className="p-4">
+    <Card className="group flex h-full min-w-0 cursor-pointer flex-col overflow-hidden transition-colors hover:bg-accent/50">
+      <CardContent className="flex min-h-52 min-w-0 flex-1 flex-col p-5">
 
         {/* Title + menu */}
 
         {/*This div container positions document Title and Menu at the ceiling with title on the left and menu on the right corner of the card */}
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="font-serif text-base leading-tight">
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <h3 className="min-w-0 truncate font-serif text-lg leading-tight">
             {document.title}
           </h3>
-          <DocumentActions
-            document={document}
-            onRename={onRename}
-            onDelete={onDelete}
-          />
+          <div className="shrink-0">
+            <DocumentActions
+              document={document}
+              onRename={onRename}
+              onDelete={onDelete}
+            />
+          </div>
         </div>
 
 
         {/*This serves a short description / excerpt for the document */}
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground line-clamp-3">
+        <p className="mt-3 min-h-20 overflow-hidden text-sm leading-relaxed break-words text-muted-foreground line-clamp-4">
           {document.excerpt}
         </p>
 
         {/*Divider */}
-        <div className="my-4 border-t"></div>
+        <div className="mt-auto my-4 border-t"></div>
 
         {/*Bottom metadata such as source URL and date created*/}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
             <span className="truncate">
               {document.source_url ? formatUrl(document.source_url) : "Manual"}
             </span>
 
-            <span>·</span>
+            <span className="shrink-0">·</span>
 
             <span className="shrink-0">
               {createdAt}

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Document } from "@/types/api"
 import { AddDocumentDialog } from "@/components/documents/DocumentDialog"
+import { toast } from "sonner"
 
 /**
  * Documents page — lists everything the user has saved to their knowledge base.
@@ -39,20 +40,32 @@ export default function DocumentsPage() {
   }, [])
 
   async function handleRename(id: number, title: string) {
-    const updated = await updateDocument(id, { title })
-    setDocuments((prev) =>
-      prev.map((doc) => (doc.id === id ? { ...doc, ...updated } : doc))
-    )
+    try {
+        const updated = await updateDocument(id, { title })
+        setDocuments((prev) =>
+        prev.map((doc) => (doc.id === id ? { ...doc, ...updated } : doc))
+        )
+    } catch (err) {
+         toast.error(err instanceof Error ? err.message : "Failed to rename",  {duration: 3000,})
+        throw err
+    }
+
   }
 
   async function handleDelete(id: number) {
-    await deleteDocument(id)
-    setDocuments((prev) => prev.filter((doc) => doc.id !== id))
+    try {
+        await deleteDocument(id)
+        setDocuments((prev) => prev.filter((doc) => doc.id !== id))
+        toast.success("Document deleted",  {duration: 3000,})
+    } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to delete",  {duration: 3000,})
+        throw err
+    }
   }
 
 
   return (
-    <div className="mx-auto max-w-5xl p-8">
+    <div className="mx-auto w-full max-w-7xl p-8">
         <header className="mb-8 flex items-center justify-between gap-5">
             <div>
                 <h1 className="text-2xl font-semibold">Library</h1>
@@ -109,11 +122,11 @@ function DocumentsBody({ documents, loading, error, onAddClick, onRename, onDele
 }) {
     if (loading) {
       return (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {/* fixed height roughly matching a real card so the layout
                   doesn't jump when data arrives */}
               {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-44 rounded-xl" />
+                  <Skeleton key={i} className="h-52 rounded-xl" />
               ))}
           </div>
       )
@@ -154,7 +167,7 @@ function DocumentsBody({ documents, loading, error, onAddClick, onRename, onDele
     }
 
     return (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
             {documents.map((document) => (
                 <DocumentCard
                     key={document.id}

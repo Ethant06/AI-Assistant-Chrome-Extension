@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { toast } from "sonner"
 import {
     Dialog,
     DialogContent,
@@ -92,6 +93,9 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated } : AddDocumen
       onCreated(document)
       resetForm()
       onOpenChange(false)
+      toast.success("Document saved",  {
+    duration: 3000,
+})
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save document")
     } finally {
@@ -104,7 +108,7 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated } : AddDocumen
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg overflow-hidden">
           <DialogHeader>
               <DialogTitle>Add to knowledge base</DialogTitle>
               <DialogDescription>
@@ -154,7 +158,7 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated } : AddDocumen
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
                       placeholder="Paste the full text here..."
-                      className="min-h-48 max-h-64 resize-none overflow-y-auto"
+                      className="h-48 field-sizing-fixed resize-none overflow-y-auto"
                       disabled={submitting}
                   />
               </div>
