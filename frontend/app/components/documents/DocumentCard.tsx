@@ -1,3 +1,15 @@
+/**
+ * Displays one saved document.
+ *
+ * Purely presentational — holds no state and performs no API calls.
+ * The rename and delete callbacks pass straight through to
+ * DocumentActions without being invoked here.
+ *
+ * Handles two nullable fields from the API:
+ *   source_url  null when content was pasted rather than saved from a URL
+ *   excerpt     null if the document has no content
+ */
+
 "use client"
 import { DocumentActions } from "@/components/documents/DocumentActions"
 import { Card, CardContent } from "../ui/card"
