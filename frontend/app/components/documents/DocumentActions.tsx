@@ -129,7 +129,7 @@ export function DocumentActions({
                 <AlertDialogContent className="overflow-hidden">
                     <AlertDialogHeader className="min-w-0 max-w-full">
                         <AlertDialogTitle>Delete this document?</AlertDialogTitle>
-                        <AlertDialogDescription className="min-w-0 max-w-full text-left break-words">
+                        <AlertDialogDescription className="min-w-0 max-w-full text-left wrap-break-word">
                             <span className="block max-w-full break-all font-medium text-foreground">
                                 &ldquo;{document.title}&rdquo;
                             </span>

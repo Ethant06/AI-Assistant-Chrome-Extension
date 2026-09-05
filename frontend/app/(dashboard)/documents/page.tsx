@@ -167,7 +167,7 @@ function DocumentsBody({ documents, loading, error, onAddClick, onRename, onDele
     }
 
     return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 min-w-0">
             {documents.map((document) => (
                 <DocumentCard
                     key={document.id}
@@ -179,9 +179,5 @@ function DocumentsBody({ documents, loading, error, onAddClick, onRename, onDele
         </div>
     )
 }
-
-
-
-
 
 }
