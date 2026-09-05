@@ -5,6 +5,7 @@ import type { Message } from "@/types/api"
 
 interface ChatMessageProps {
   message: Message
+  streaming?: boolean
 }
 
 
@@ -14,7 +15,7 @@ interface ChatMessageProps {
  *
  * User messages align right, assistant messages align left with an avatar,
  */
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, streaming }: ChatMessageProps) {
   const isUser = message.role === "user"
 
 
@@ -37,6 +38,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
       <div className="min-w-0 flex-1 space-y-3">
           <p className="text-sm leading-relaxed whitespace-pre-wrap">
               {message.content}
+               {/* blinking block shows the response is still generating */}
+               {streaming && (
+                    <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-foreground align-text-bottom" />
+                )}
           </p>
           {/* sources render here once we build ChatSources */}
       </div>
