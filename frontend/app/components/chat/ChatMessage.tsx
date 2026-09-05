@@ -1,6 +1,6 @@
 "use client"
 
-import { Bot, User } from "lucide-react"
+import { Bot} from "lucide-react"
 import type { Message } from "@/types/api"
 
 interface ChatMessageProps {
