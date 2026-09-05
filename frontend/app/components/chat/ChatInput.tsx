@@ -11,8 +11,6 @@ interface ChatInputProps {
     disabled?: boolean
 }
 
-
-
 /**
  * Message composer.
  *
