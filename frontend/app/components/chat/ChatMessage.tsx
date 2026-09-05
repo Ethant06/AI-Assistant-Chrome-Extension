@@ -14,3 +14,32 @@ interface ChatMessageProps {
  *
  * User messages align right, assistant messages align left with an avatar,
  */
+export function ChatMessage({ message }: ChatMessageProps) {
+  const isUser = message.role === "user"
+
+
+  if (isUser) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[80%] rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-primary-foreground">
+          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex gap-3">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+          <Bot className="size-4" />
+      </div>
+
+      <div className="min-w-0 flex-1 space-y-3">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              {message.content}
+          </p>
+          {/* sources render here once we build ChatSources */}
+      </div>
+    </div>
+  )
+}
