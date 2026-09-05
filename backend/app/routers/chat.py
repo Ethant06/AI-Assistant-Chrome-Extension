@@ -115,7 +115,8 @@ def chat(
 
   return StreamingResponse(
     stream_and_save(),
-    media_type="text/plain"
+    media_type="text/plain",
+    headers={"X-Conversation-Id": str(conversation.id)},
   )
 
 @router.get("/conversations/", response_model=ConversationListResponse)
