@@ -3,6 +3,8 @@
 import { Bot} from "lucide-react"
 import type { Message } from "@/types/api"
 
+import { ChatSources } from "@/components/chat/ChatSources"
+
 interface ChatMessageProps {
   message: Message
   streaming?: boolean
@@ -44,6 +46,9 @@ export function ChatMessage({ message, streaming }: ChatMessageProps) {
                 )}
           </p>
           {/* sources render here once we build ChatSources */}
+          {/* sources only exist after the message is saved, so they appear
+        once streaming finishes and the conversation is refetched */}
+          {!streaming && <ChatSources sources={message.sources} />}
       </div>
     </div>
   )
