@@ -2,8 +2,9 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Brain, FileText, MessageSquare, Settings } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { Brain, FileText, Settings, SquarePen } from "lucide-react"
+import { ConversationList } from "@/components/layout/ConversationList"
 import {
     Sidebar,
     SidebarContent,
@@ -21,12 +22,18 @@ import {
 /**
  * Persistent navigation sidebar for authenticated pages.
  *
- * Nav links are defined as data rather than JSX so adding a route is a
- * one-line change. The "Recent" group is populated with conversations
- * once the chat feature is built.
+ * Three sections:
+ *   - New chat + Library: primary navigation
+ *   - Recent: saved conversations, scrolls independently of the nav above
+ *   - Settings: pinned footer
  *
- * collapsible="icon" shrinks the sidebar to an icon rail; labels hide
- * via the group-data-[collapsible=icon] variant and tooltips take over.
+ * "New chat" is separate from the navItems array because it needs exact
+ * pathname matching — /chat/4 is an existing conversation, so New chat
+ * should only highlight on /chat itself. Library uses prefix matching so
+ * future nested routes keep it highlighted.
+ *
+ * collapsible="icon" shrinks the sidebar to an icon rail; labels hide via
+ * the group-data-[collapsible=icon] variant and tooltips take over.
  */
 
 type NavItem = {
@@ -37,12 +44,11 @@ type NavItem = {
 
 const navItems: NavItem[] = [
     { title: "Library", url: "/documents", icon: FileText },
-    { title: "Chat", url: "/chat", icon: MessageSquare },
 ]
 
 /**
- * Renders a list of nav links with active-state highlighting.
- * Extracted so the footer and any future groups can reuse it.
+ * Renders nav links with active-state highlighting.
+ * Shared between the main nav group and the footer.
  */
 function SidebarNavItems({
     items,
@@ -81,13 +87,14 @@ function SidebarNavItems({
 
 export function AppSidebar() {
     const pathname = usePathname()
+    const router = useRouter()
 
     /**
      * True when the pathname matches the href exactly, or is nested under it.
      *
-     * Using startsWith alone would incorrectly match sibling routes —
-     * /chats would highlight /chat. Requiring a trailing slash for the
-     * prefix case avoids that while still matching /chat/4.
+     * Bare startsWith would match sibling routes — /documents-archive would
+     * incorrectly highlight /documents. Requiring a trailing slash for the
+     * prefix case avoids that while still matching /documents/4.
      */
     const isActivePath = (href: string) =>
         pathname === href || pathname.startsWith(`${href}/`)
@@ -110,6 +117,23 @@ export function AppSidebar() {
                 <SidebarGroup>
                     <SidebarGroupContent>
                         <SidebarMenu>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    isActive={pathname === "/chat"}
+                                    tooltip="New chat"
+                                    className="cursor-pointer"
+                                    onClick={() => {
+                                        window.dispatchEvent(new Event("conversations-changed"))
+                                        router.push(`/chat?new=${Date.now()}`)
+                                    }}
+                                >
+                                    <SquarePen />
+                                    <span className="group-data-[collapsible=icon]:hidden">
+                                        New chat
+                                    </span>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+
                             <SidebarNavItems
                                 items={navItems}
                                 isActivePath={isActivePath}
@@ -118,12 +142,10 @@ export function AppSidebar() {
                     </SidebarGroupContent>
                 </SidebarGroup>
 
-                <SidebarGroup>
+                <SidebarGroup className="min-h-0 flex-1">
                     <SidebarGroupLabel>Recent</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {/* conversations render here once chat is built */}
-                        </SidebarMenu>
+                    <SidebarGroupContent className="overflow-y-auto">
+                        <ConversationList />
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
