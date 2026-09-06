@@ -1,4 +1,18 @@
 // components/documents/rename-dialog.tsx
+/**
+ * Modal for editing a document's title.
+ *
+ * Deliberately generic: it takes a current title and an async callback,
+ * and has no knowledge of documents, IDs, or the API. DocumentActions
+ * binds the document ID before passing the callback in.
+ *
+ * Controlled by the parent via open/onOpenChange. The useEffect resyncs
+ * the input to currentTitle whenever the dialog opens — without it,
+ * abandoning a rename and reopening would show the discarded edit.
+ *
+ * onRename returns a Promise so this dialog can keep its spinner running,
+ * catch failures, and only close on success.
+ */
 "use client"
 
 import { useEffect, useState, type SyntheticEvent } from "react"

@@ -204,7 +204,7 @@ export async function deleteDocument(id: number): Promise<void> {
 export async function sendChatRequest(
   data: ChatRequest,
   onToken: (token: string) => void
-): Promise<void> {
+): Promise<number | null> {
   const res = await fetch(`${API_URL}/chat/`, {
     method: "POST",
     headers: jsonHeaders,
@@ -217,6 +217,7 @@ export async function sendChatRequest(
     throw new Error(error.detail)
   }
 
+  const conversationIdHeader = res.headers.get("X-Conversation-Id")
   const reader = res.body?.getReader() //our chatbot is streaming so we ask for the response body as a stream to read piece-by-piece
 
   if (!reader) throw new Error("Streaming not supported")
@@ -227,8 +228,12 @@ export async function sendChatRequest(
       const { done, value } = await reader.read()
 
       if (done) break
-      onToken(decoder.decode(value))
+      onToken(decoder.decode(value, { stream: true }))
     }
+    onToken(decoder.decode())
+
+    const parsed = conversationIdHeader ? Number(conversationIdHeader) : NaN
+    return Number.isFinite(parsed) ? parsed : null
 }
 
 
