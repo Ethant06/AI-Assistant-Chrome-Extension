@@ -326,18 +326,13 @@ def retrieve_from_text(question: str, text: str, top_k: int = 4) -> list[str]:
   ]
   """
 
-  from app.services.ingestion import chunk_text
+  from app.services.ingestion import chunk_text, embed_texts
 
   chunks = chunk_text(text)
   if not chunks:
     return []
 
-  response = client.embeddings.create(
-    input=chunks,
-    model="text-embedding-3-small"
-  )
-
-  chunk_embeddings = [item.embedding for item in response.data]
+  chunk_embeddings = embed_texts(chunks)
 
   question_embedding = embed_question(question)
 

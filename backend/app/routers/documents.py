@@ -23,7 +23,7 @@ from app.dependencies.deps import get_current_user
 from app.models.tables import User
 import logging
 
-from app.services.ingestion import ingest_document
+from app.services.ingestion import ingest_document_async
 
 logger = logging.getLogger(__name__)
 router = APIRouter(
@@ -63,7 +63,7 @@ def create_document(
 
     # kick off ingestion after commit — document.id is now available
     # runs after this response is returned, not before
-  background_tasks.add_task(ingest_document, document.id)
+  background_tasks.add_task(ingest_document_async, document.id)
 
   logger.info(f"Document created: id={document.id} user={current_user.email}")
   return document

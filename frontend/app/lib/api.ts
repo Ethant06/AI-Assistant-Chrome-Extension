@@ -175,6 +175,28 @@ export async function getDocument(id: number): Promise<Document> {
 }
 
 /**
+ * Polls until ingestion finishes. createDocument() returns immediately
+ * with status="processing"; chat can only use the document once it is ready.
+ */
+export async function waitForDocumentReady(
+  id: number,
+  timeoutMs: number = 120_000
+): Promise<Document> {
+  const started = Date.now()
+
+  while (Date.now() - started < timeoutMs) {
+    const document = await getDocument(id)
+    if (document.status === "ready") return document
+    if (document.status === "failed") {
+      throw new Error("Document processing failed. Try saving again.")
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+
+  throw new Error("Document is still processing. Check the Library in a moment.")
+}
+
+/**
  * Update's a document's title. Content and souce URL cannot be changed
  */
 export async function updateDocument(id: number, data: DocumentUpdateRequest): Promise<Document> {
