@@ -22,7 +22,8 @@ from app.schemas.chat import (
   ChatRequest,
   ConversationListResponse,
   ConversationSummary,
-  ConversationResponse
+  ConversationResponse,
+  InstantChatRequest
 )
 
 from app.services.chat import (
@@ -30,7 +31,9 @@ from app.services.chat import (
   retrieve_chunks,
   generate_answer_stream,
   get_or_create_conversation,
-  save_messages
+  save_messages,
+  retrieve_from_text,
+  generate_answer_from_context
 )
 
 from app.dependencies.deps import get_current_user
@@ -181,6 +184,10 @@ def get_conversation(
   logger.info(f"User {current_user.email} opened conversation {conversation_id}")
   return conversation
 
+
+# guard against embedding an enormous page — roughly 12k tokens
+MAX_INSTANT_CHARS = 50_000
+
 @router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_conversation(
   conversation_id: int,
@@ -204,4 +211,46 @@ def delete_conversation(
   db.commit()
   logger.info(f"Conversation {conversation_id} deleted by {current_user.email}")
 
+@router.post("/instant")
+def instant_chat(
+  request: InstantChatReuqest,
+  current_user: User = Depends(get_current_user)
+):
+  """
+  Answers a question about arbitrary page content, without saving anything.
 
+  Powers the Chrome extension's "Ask now" mode: the user is reading a page
+  and wants a quick answer without adding it to their knowledge base.
+
+  Fully stateless — the content is chunked, embedded, and scored in memory,
+  then discarded. No database session is needed, no conversation is created,
+  and no MessageSource rows are written.
+
+  Pages over MAX_INSTANT_CHARS are rejected rather than truncated, since a
+  silently truncated answer would be misleading. The extension surfaces this
+  as a prompt to save the page to the knowledge base instead.
+
+  """
+  logger.info(
+        f"Instant chat from {current_user.email}: "
+        f"'{request.question[:50]}' on {request.page_url or 'unknown page'}"
+  )
+
+  if len(request.page_content) > MAX_INSTANT_CHARS:
+    raise HTTPException(
+        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+        detail="Page is too long for instant answers. Save it to your knowledge base instead."
+  )
+
+  if len(request.page_content.strip()) < 50:
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Not enough content on this page to answer questions about."
+  )
+
+  relevant_chunks = retrieve_from_text(request.question, request.page_content)
+
+  return StreamingResponse(
+    generate_answer_from_context(request.question, relevant_chunks, request.page_title),
+    media_type="text/plain"
+  )
