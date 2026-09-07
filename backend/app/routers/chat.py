@@ -213,7 +213,7 @@ def delete_conversation(
 
 @router.post("/instant")
 def instant_chat(
-  request: InstantChatReuqest,
+  request: InstantChatRequest,
   current_user: User = Depends(get_current_user)
 ):
   """
