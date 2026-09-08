@@ -1,14 +1,16 @@
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from pathlib import Path
+from sqlalchemy import engine_from_config, pool, text
 
 from alembic import context
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BACKEND_DIR))
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(BACKEND_DIR / ".env")
 
 from app.database import Base
 import app.models.tables
@@ -76,6 +78,8 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        connection.commit()
         context.configure(
             connection=connection, target_metadata=target_metadata
         )

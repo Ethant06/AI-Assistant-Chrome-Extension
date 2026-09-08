@@ -1,0 +1,27 @@
+# tells docker to run a PostgreSQL 16 database created with user called postgres with password postgres
+# and create a database called knowledge_base
+# - calls our docker/postgres/init.sql file to run inside PostgreSQL instance inside docker container
+# which tells postgre to enable pgvector extension for this database to store vector embeddings
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: knowledge-base-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-knowledge_base}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-vector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

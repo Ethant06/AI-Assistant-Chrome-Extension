@@ -2,16 +2,26 @@
 .venv
 venv/
 __pycache__/
+*.pyc
 
-
-# Environmental Variables
+# Environment files — keep a committed .env.example with names only
 .env
+.env.*
+!.env.example
+!**/.env.example
 
+# Keys / certs / cloud credentials
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+*-credentials.json
+service-account*.json
 
+# Logs
 *.log
-app.log
 
-
+# Frontend build
 frontend/node_modules
 frontend/.next
-frontend/.env.local
