@@ -14,6 +14,7 @@ import type {
     DocumentListResponse,
     DocumentCreateRequest,
     DocumentUpdateRequest,
+    DocumentChangeEvent,
     Conversation,
     ConversationListResponse,
     ChatRequest,
@@ -175,6 +176,28 @@ export async function getDocument(id: number): Promise<Document> {
 }
 
 /**
+ * Polls until ingestion finishes. createDocument() returns immediately
+ * with status="processing"; chat can only use the document once it is ready.
+ */
+export async function waitForDocumentReady(
+  id: number,
+  timeoutMs: number = 120_000
+): Promise<Document> {
+  const started = Date.now()
+
+  while (Date.now() - started < timeoutMs) {
+    const document = await getDocument(id)
+    if (document.status === "ready") return document
+    if (document.status === "failed") {
+      throw new Error("Document processing failed. Try saving again.")
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+
+  throw new Error("Document is still processing. Check the Library in a moment.")
+}
+
+/**
  * Update's a document's title. Content and souce URL cannot be changed
  */
 export async function updateDocument(id: number, data: DocumentUpdateRequest): Promise<Document> {
@@ -197,6 +220,78 @@ export async function deleteDocument(id: number): Promise<void> {
     credentials: "include",
   })
   return handleResponse<void>(res)
+}
+
+/**
+ * Live document changes for the Library. Uses the same-origin rewrite so
+ * the auth cookie is sent. Reconnects if the stream drops.
+ */
+export function subscribeDocumentEvents(
+  onEvent: (event: DocumentChangeEvent) => void
+): () => void {
+  const controller = new AbortController()
+  let closed = false
+
+  async function connect() {
+    let delayMs = 1000
+
+    while (!closed) {
+      try {
+        const res = await fetch(`${API_URL}/documents/events`, {
+          credentials: "include",
+          headers: { Accept: "text/event-stream" },
+          signal: controller.signal,
+        })
+
+        if (!res.ok || !res.body) {
+          throw new Error(`Document events failed: ${res.status}`)
+        }
+
+        delayMs = 1000
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+
+        while (!closed) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const parts = buffer.split("\n\n")
+          buffer = parts.pop() ?? ""
+
+          for (const part of parts) {
+            const dataLine = part
+              .split("\n")
+              .find((line) => line.startsWith("data: "))
+            if (!dataLine) continue
+            try {
+              const event = JSON.parse(dataLine.slice(6)) as DocumentChangeEvent
+              if (event.type === "created" || event.type === "updated" || event.type === "deleted") {
+                onEvent(event)
+              }
+            } catch {
+              // ignore malformed frames
+            }
+          }
+        }
+      } catch (err) {
+        if (closed || controller.signal.aborted) return
+        console.warn("Document events reconnecting", err)
+      }
+
+      if (closed) return
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+      delayMs = Math.min(delayMs * 2, 10_000)
+    }
+  }
+
+  connect()
+
+  return () => {
+    closed = true
+    controller.abort()
+  }
 }
 
 // ─── Chat ───────────────────────────────────────────

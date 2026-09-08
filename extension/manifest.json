@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "PagePilot",
+  "version": "0.2.1",
+  "description": "Ask about the current page or save it to your knowledge base.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "PagePilot"
+  }
+}

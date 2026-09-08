@@ -35,6 +35,8 @@ class MessageResponse(BaseModel):
   role is always "user" or "assistant"
   sources exist only for assistant
   """
+  model_config = ConfigDict(from_attributes=True)
+
   id: int
   role: str
   content: str

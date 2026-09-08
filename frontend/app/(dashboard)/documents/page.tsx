@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { FileText, Plus, CircleAlert } from "lucide-react"
-import { deleteDocument, listDocuments, updateDocument } from "@/lib/api"
+import { deleteDocument, listDocuments, subscribeDocumentEvents, updateDocument } from "@/lib/api"
 import { DocumentCard } from "@/components/documents/DocumentCard"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { Document } from "@/types/api"
+import type { Document, DocumentChangeEvent } from "@/types/api"
 import { AddDocumentDialog } from "@/components/documents/DocumentDialog"
 import { toast } from "sonner"
 
@@ -33,10 +33,40 @@ export default function DocumentsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   useEffect(() => {
-    listDocuments()
-    .then((res) => setDocuments(res.documents))
-    .catch((err) => setError(err instanceof Error ? err.message: "Failed to load documents"))
-    .finally(() => setLoading(false))
+    let cancelled = false
+
+    async function refresh(isInitial = false) {
+      try {
+        const res = await listDocuments()
+        if (cancelled) return
+        setDocuments(res.documents)
+        setError(null)
+      } catch (err) {
+        if (!cancelled && isInitial) {
+          setError(err instanceof Error ? err.message : "Failed to load documents")
+        }
+      } finally {
+        if (!cancelled && isInitial) setLoading(false)
+      }
+    }
+
+    refresh(true)
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") refresh()
+    }, 2000)
+
+    const unsubscribe = subscribeDocumentEvents((event) => {
+      if (cancelled) return
+      setDocuments((prev) => applyDocumentEvent(prev, event))
+      setError(null)
+    })
+
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+      unsubscribe()
+    }
   }, [])
 
   async function handleRename(id: number, title: string) {
@@ -96,9 +126,13 @@ export default function DocumentsPage() {
         <AddDocumentDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
-          // prepend so the newest document appears first,
-          // matching the API's created_at descending order
-          onCreated={(doc) => setDocuments((prev) => [doc, ...prev])}
+          onCreated={(doc) =>
+            setDocuments((prev) => applyDocumentEvent(prev, {
+              type: "created",
+              id: doc.id,
+              document: doc,
+            }))
+          }
         />
     </div>
   )
@@ -180,4 +214,20 @@ function DocumentsBody({ documents, loading, error, onAddClick, onRename, onDele
     )
 }
 
+}
+
+function applyDocumentEvent(prev: Document[], event: DocumentChangeEvent): Document[] {
+  if (event.type === "deleted") {
+    return prev.filter((doc) => doc.id !== event.id)
+  }
+
+  const next = event.document
+  if (!next) return prev
+
+  const exists = prev.some((doc) => doc.id === next.id)
+  if (!exists) {
+    return [next, ...prev]
+  }
+
+  return prev.map((doc) => (doc.id === next.id ? { ...doc, ...next } : doc))
 }
