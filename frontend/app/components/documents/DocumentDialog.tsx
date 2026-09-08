@@ -2,7 +2,7 @@
 
 import { useState, type SyntheticEvent } from "react"
 import { Loader2 } from "lucide-react"
-import { createDocument } from "@/lib/api"
+import { createDocument, waitForDocumentReady } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -40,11 +40,9 @@ interface AddDocumentDialogProps {
 
 
 /**
- * On success, the dialog receives the fully ingested document and passes it
- * to the parent so it can be added to the document list.
- *
- * Ingestion/processing is handled while the dialog is submitting, so the
- * document only appears in the list once it is ready to use.
+ * Stays open until chunking and embedding finish. The API returns the
+ * document immediately as "processing"; we poll GET /documents/{id}
+ * so the user cannot leave and chat before it is searchable.
  */
 export function AddDocumentDialog({ open, onOpenChange, onCreated } : AddDocumentDialogProps) {
   const [title, setTitle] = useState("")
@@ -84,18 +82,18 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated } : AddDocumen
     setSubmitting(true)
 
     try {
-      const document = await createDocument({
+      const created = await createDocument({
         title: title.trim(),
         raw_content: content.trim(),
         source_url: sourceUrl.trim() || null,
       })
 
+      const document = await waitForDocumentReady(created.id)
+
       onCreated(document)
       resetForm()
       onOpenChange(false)
-      toast.success("Document saved",  {
-    duration: 3000,
-})
+      toast.success("Document ready", { duration: 3000 })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save document")
     } finally {
@@ -107,7 +105,12 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated } : AddDocumen
 
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!submitting) onOpenChange(nextOpen)
+      }}
+    >
       <DialogContent className="sm:max-w-lg overflow-hidden">
           <DialogHeader>
               <DialogTitle>Add to knowledge base</DialogTitle>
@@ -176,7 +179,7 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated } : AddDocumen
                   </Button>
                   <Button type="submit" disabled={submitting}>
                       {submitting && <Loader2 className="size-4 animate-spin" />}
-                      Save
+                      {submitting ? "Processing..." : "Save"}
                   </Button>
               </DialogFooter>
           </form>

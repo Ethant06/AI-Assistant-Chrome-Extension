@@ -2,6 +2,7 @@ from openai import OpenAI
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.models.tables import Document, DocumentChunk, Conversation, Message, MessageSource
+import math
 
 import logging
 import os
@@ -278,3 +279,117 @@ def save_messages(conversation: Conversation, question: str, answer: str, chunks
     logger.info(
         f"Saved conversation_id={conversation.id} "
     )
+
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+  """
+  Measures how semantically similar two embedding vectors are.
+
+  Returns a value from -1 to 1, where 1 means identical direction (higher similar meaning) and 0 means unrelated.
+
+  pgvector computes this in sql for saved documents. For instant chat, nothing is stored, so the comparison
+
+  happens here in pure python logic.
+  """
+
+  dot = sum(x * y for x, y in zip(a, b))
+  norm_a = math.sqrt(sum(x * x for x in a))
+  norm_b = math.sqrt(sum(y * y for y in b))
+
+  # guard against division by zero on a degenerate vector
+  if norm_a == 0 or norm_b == 0:
+      return 0.0
+
+  return dot / (norm_a * norm_b)
+
+
+def retrieve_from_text(question: str, text: str, top_k: int = 4) -> list[str]:
+  """
+  Chunks arbitrary text, embeds it, and returns the chunks most relevant to the question,
+  all in memory, nothing persisted.
+
+  This is the instant chat equivalent of retrieve_chunks, which queries pgvector for saved documents. Same concept but
+  different source.
+
+  Chunks are embedded in a single batched api call rather than one call per chunk since latency here matters a lot.
+
+  texts = [
+    "Chunk 1 text...",
+    "Chunk 2 text...",
+    "Chunk 3 text...",
+    "Chunk 4 text..."
+  ] and then the API gives us:
+  [
+    embedding_for_chunk_1,
+    embedding_for_chunk_2,
+    embedding_for_chunk_3,
+    embedding_for_chunk_4
+  ]
+  """
+
+  from app.services.ingestion import chunk_text, embed_texts
+
+  chunks = chunk_text(text)
+  if not chunks:
+    return []
+
+  chunk_embeddings = embed_texts(chunks)
+
+  question_embedding = embed_question(question)
+
+  scored = [
+      (cosine_similarity(question_embedding, emb), chunk)
+      for emb, chunk in zip(chunk_embeddings, chunks)
+  ]
+  scored.sort(reverse=True, key=lambda pair: pair[0])
+
+  return [chunk for _, chunk in scored[:top_k]]
+
+
+def generate_answer_from_context(
+  question: str,
+  chunks: list[str],
+  page_title: str | None = None
+):
+  """
+  Streams an answer grounded in raw text chunks.
+
+  Sibling of generate_answer_stream, which takes DocumentChunk ORM objects
+  from the database. This variant takes plain strings, since instant chat never persists
+  anything to compare agaisnt.
+
+  The system prompt is scoped to a single page rather than a whole knowledge base,
+  so the "I don't know" fallback references the page.
+  """
+  if not chunks:
+    yield "I couldn't find enough relevant content on this page to answer that."
+    return
+
+  context = "\n\n".join(chunks)
+  source = f'the page "{page_title}"' if page_title else "this page"
+
+
+  system_prompt = f"""You are answering a question about {source} the user is currently reading.
+
+Here is the relevant content from that page:
+
+{context}
+
+Rules:
+1. Answer using only the content above.
+2. If the content doesn't contain enough information, say "I don't have enough information on this page to answer that."
+3. Be concise and accurate.
+4. Never fabricate information not present in the content above."""
+
+  stream = client.chat.completions.create(
+      model="gpt-4o",
+      stream=True,
+      messages=[
+          {"role": "system", "content": system_prompt},
+          {"role": "user", "content": question},
+      ],
+  )
+
+  for chunk in stream:
+      delta = chunk.choices[0].delta.content
+      if delta:
+          yield delta

@@ -64,7 +64,7 @@ export function DocumentCard({ document, onRename, onDelete }: DocumentCardProps
 
 
         {/*This serves a short description / excerpt for the document */}
-        <p className="mt-3 min-h-20 overflow-hidden text-sm leading-relaxed break-words text-muted-foreground line-clamp-4">
+        <p className="mt-3 min-h-20 overflow-hidden text-sm leading-relaxed wrap-break-word text-muted-foreground line-clamp-4">
           {document.excerpt}
         </p>
 
@@ -83,6 +83,21 @@ export function DocumentCard({ document, onRename, onDelete }: DocumentCardProps
             <span className="shrink-0">
               {createdAt}
             </span>
+
+            {document.status !== "ready" && (
+              <>
+                <span className="shrink-0">·</span>
+                <span
+                  className={
+                    document.status === "failed"
+                      ? "shrink-0 text-destructive"
+                      : "shrink-0"
+                  }
+                >
+                  {document.status === "failed" ? "Failed" : "Processing"}
+                </span>
+              </>
+            )}
           </div>
         </div>
 

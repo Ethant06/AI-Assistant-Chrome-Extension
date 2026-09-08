@@ -35,6 +35,8 @@ class MessageResponse(BaseModel):
   role is always "user" or "assistant"
   sources exist only for assistant
   """
+  model_config = ConfigDict(from_attributes=True)
+
   id: int
   role: str
   content: str
@@ -78,3 +80,17 @@ class ConversationListResponse(BaseModel):
 
   conversations: list[ConversationSummary]
   total: int # total count across all pages, not just this page.
+
+
+class InstantChatRequest(BaseModel):
+  """
+  Input schema for POST /chat/instant
+
+  Used by the Chrome extension's "ASK now" mode. Unlike chatrequest, the content to search
+  comes from the request itself rather than the user's saved documents - the extension
+  sendw whatever page the user is currently reading.
+  """
+  question: str
+  page_content: str
+  page_url: Optional[str] = None
+  page_title: Optional[str] = None
