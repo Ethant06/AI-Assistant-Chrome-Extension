@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "PagePilot",
+  "version": "0.1.0",
+  "description": "Save pages and ask questions about them.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "PagePilot"
+  }
+}
