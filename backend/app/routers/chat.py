@@ -23,7 +23,9 @@ from app.schemas.chat import (
   ConversationListResponse,
   ConversationSummary,
   ConversationResponse,
-  InstantChatRequest
+  InstantChatRequest,
+  MessageResponse,
+  SourceResponse,
 )
 
 from app.services.chat import (
@@ -182,7 +184,32 @@ def get_conversation(
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
 
   logger.info(f"User {current_user.email} opened conversation {conversation_id}")
-  return conversation
+
+  # Skip citations whose chunk/document was deleted (chunk_id SET NULL).
+  # Returning those as-is makes Pydantic 500 because document_id is None.
+  return ConversationResponse(
+    id=conversation.id,
+    title=conversation.title,
+    created_at=conversation.created_at,
+    messages=[
+      MessageResponse(
+        id=message.id,
+        role=message.role,
+        content=message.content,
+        created_at=message.created_at,
+        sources=[
+          SourceResponse(
+            document_id=source.document_id,
+            document_title=source.document_title,
+            source_url=source.source_url,
+          )
+          for source in message.sources
+          if source.chunk and source.chunk.document
+        ],
+      )
+      for message in conversation.messages
+    ],
+  )
 
 
 # guard against embedding an enormous page — roughly 12k tokens

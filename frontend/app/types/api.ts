@@ -82,6 +82,15 @@ export interface DocumentListResponse {
     page_size: number
 }
 
+/**
+ * Pushed over GET /documents/events while the Library is open.
+ */
+export interface DocumentChangeEvent {
+    type: "created" | "updated" | "deleted"
+    id: number
+    document: Document | null
+}
+
 
 // ─── Chat ───────────────────────────────────────────
 

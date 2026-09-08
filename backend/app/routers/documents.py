@@ -9,20 +9,25 @@ All queries filter by current_user.id — users can only access their own docume
 Routes:
     POST   /documents/          create document + trigger ingestion
     GET    /documents/          list documents (paginated)
+    GET    /documents/events    live document changes (SSE)
     GET    /documents/{id}      get single document
     PATCH  /documents/{id}      update document title
     DELETE /documents/{id}      delete document + cascade chunks
 """
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
-from sqlalchemy.orm import Session
-from app.database import get_db
-from app.models.tables import Document
-from app.schemas.documents import DocumentCreate, DocumentResponse, DocumentListResponse, DocumentUpdate
-from app.dependencies.deps import get_current_user
-from app.models.tables import User
+import asyncio
+import json
 import logging
 
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, status
+from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
+
+from app.database import SessionLocal, get_db
+from app.dependencies.deps import get_current_user
+from app.models.tables import Document, User
+from app.schemas.documents import DocumentCreate, DocumentResponse, DocumentListResponse, DocumentUpdate
+from app.services.document_events import publish_document_event, subscribe, unsubscribe
 from app.services.ingestion import ingest_document_async
 
 logger = logging.getLogger(__name__)
@@ -66,6 +71,7 @@ def create_document(
   background_tasks.add_task(ingest_document_async, document.id)
 
   logger.info(f"Document created: id={document.id} user={current_user.email}")
+  publish_document_event(current_user.id, "created", document)
   return document
 
 @router.get("/", response_model=DocumentListResponse)
@@ -100,6 +106,52 @@ def list_documents(
     "page": page,
     "page_size": page_size
   }
+
+
+@router.get("/events")
+async def document_events(request: Request):
+  """
+  Server-sent events for the current user's documents.
+
+  The Library stays subscribed while it is open. Create / update / delete
+  from the web app or the Chrome extension is pushed immediately — no poll.
+  Auth is resolved once, then the DB session is closed so a long-lived
+  stream does not hold a connection.
+  """
+  db = SessionLocal()
+  try:
+    user = get_current_user(request, db)
+    user_id = user.id
+  finally:
+    db.close()
+
+  queue = subscribe(user_id)
+
+  async def generate():
+    try:
+      # A data frame (not a comment) so proxies flush headers immediately.
+      yield f"data: {json.dumps({'type': 'ping', 'id': 0, 'document': None})}\n\n"
+      while True:
+        if await request.is_disconnected():
+          break
+        try:
+          event = await asyncio.wait_for(queue.get(), timeout=15)
+          yield f"data: {json.dumps(event)}\n\n"
+        except asyncio.TimeoutError:
+          yield f"data: {json.dumps({'type': 'ping', 'id': 0, 'document': None})}\n\n"
+    finally:
+      unsubscribe(user_id, queue)
+
+  return StreamingResponse(
+    generate(),
+    media_type="text/event-stream",
+    headers={
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  )
+
 
 @router.get("/{document_id}", response_model=DocumentResponse)
 def get_document(
@@ -146,8 +198,10 @@ def delete_document(
   if not document:
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
+  document_id_deleted = document.id
   db.delete(document)
   db.commit()
+  publish_document_event(current_user.id, "deleted", document_id=document_id_deleted)
 
 @router.patch("/{document_id}", response_model=DocumentResponse)
 def update_document(
@@ -170,6 +224,7 @@ def update_document(
   document.title = data.title
   db.commit()
   db.refresh(document)
+  publish_document_event(current_user.id, "updated", document)
   return document
 
 

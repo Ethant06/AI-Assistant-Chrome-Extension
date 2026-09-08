@@ -14,6 +14,7 @@ import type {
     DocumentListResponse,
     DocumentCreateRequest,
     DocumentUpdateRequest,
+    DocumentChangeEvent,
     Conversation,
     ConversationListResponse,
     ChatRequest,
@@ -219,6 +220,78 @@ export async function deleteDocument(id: number): Promise<void> {
     credentials: "include",
   })
   return handleResponse<void>(res)
+}
+
+/**
+ * Live document changes for the Library. Uses the same-origin rewrite so
+ * the auth cookie is sent. Reconnects if the stream drops.
+ */
+export function subscribeDocumentEvents(
+  onEvent: (event: DocumentChangeEvent) => void
+): () => void {
+  const controller = new AbortController()
+  let closed = false
+
+  async function connect() {
+    let delayMs = 1000
+
+    while (!closed) {
+      try {
+        const res = await fetch(`${API_URL}/documents/events`, {
+          credentials: "include",
+          headers: { Accept: "text/event-stream" },
+          signal: controller.signal,
+        })
+
+        if (!res.ok || !res.body) {
+          throw new Error(`Document events failed: ${res.status}`)
+        }
+
+        delayMs = 1000
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+
+        while (!closed) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const parts = buffer.split("\n\n")
+          buffer = parts.pop() ?? ""
+
+          for (const part of parts) {
+            const dataLine = part
+              .split("\n")
+              .find((line) => line.startsWith("data: "))
+            if (!dataLine) continue
+            try {
+              const event = JSON.parse(dataLine.slice(6)) as DocumentChangeEvent
+              if (event.type === "created" || event.type === "updated" || event.type === "deleted") {
+                onEvent(event)
+              }
+            } catch {
+              // ignore malformed frames
+            }
+          }
+        }
+      } catch (err) {
+        if (closed || controller.signal.aborted) return
+        console.warn("Document events reconnecting", err)
+      }
+
+      if (closed) return
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+      delayMs = Math.min(delayMs * 2, 10_000)
+    }
+  }
+
+  connect()
+
+  return () => {
+    closed = true
+    controller.abort()
+  }
 }
 
 // ─── Chat ───────────────────────────────────────────

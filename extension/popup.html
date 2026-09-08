@@ -3,9 +3,36 @@
   <head>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="popup.css" />
+    <script src="popup.js" defer></script>
   </head>
   <body>
-    <h1>PagePilot</h1>
-    <p>Extension loaded.</p>
+    <section id="loginView">
+      <h1>PagePilot</h1>
+      <p class="subtitle">Sign in with your account.</p>
+      <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+      <button id="loginBtn" type="button">Sign in</button>
+      <p id="loginStatus" class="status"></p>
+    </section>
+
+    <section id="mainView" class="hidden">
+      <header class="top">
+        <div>
+          <h1>PagePilot</h1>
+          <p id="pageTitle" class="subtitle"></p>
+        </div>
+        <button id="logoutBtn" type="button" class="link">Sign out</button>
+      </header>
+
+      <textarea id="question" placeholder="Ask about this page..."></textarea>
+      <div class="row">
+        <button id="askBtn" type="button">Ask</button>
+        <button id="summarizeBtn" type="button" class="secondary">Summarize</button>
+      </div>
+      <button id="saveBtn" type="button" class="secondary">Save to knowledge base</button>
+
+      <p id="status" class="status"></p>
+      <div id="answer" class="answer hidden"></div>
+    </section>
   </body>
 </html>

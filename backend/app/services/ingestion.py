@@ -5,6 +5,7 @@ from app.database import SessionLocal
 import asyncio
 import logging
 from app.config import OPEN_AI_KEY
+from app.services.document_events import publish_document_event
 
 client = OpenAI(api_key=OPEN_AI_KEY)
 
@@ -141,6 +142,7 @@ def ingest_document(document_id: int):
       document.status = "failed"
       document.chunk_count = 0
       db.commit()
+      publish_document_event(document.user_id, "updated", document)
       logger.error(f"Ingestion failed: document {document_id} produced no chunks")
       return
 
@@ -169,12 +171,14 @@ def ingest_document(document_id: int):
       document.status = "failed"
       document.chunk_count = 0
       db.commit()
+      publish_document_event(document.user_id, "updated", document)
       logger.error(f"Ingestion failed: no embeddings saved for document {document_id}")
       return
 
     document.status = "ready"
     document.chunk_count = saved
     db.commit()
+    publish_document_event(document.user_id, "updated", document)
 
     logger.info(f"Ingestion complete: document_id={document_id} chunks={saved} status=ready")
 
@@ -187,6 +191,7 @@ def ingest_document(document_id: int):
       if document:
         document.status = "failed"
         db.commit()
+        publish_document_event(document.user_id, "updated", document)
     except Exception:
       pass
 
