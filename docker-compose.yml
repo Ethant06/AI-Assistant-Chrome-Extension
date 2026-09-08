@@ -11,9 +11,10 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-knowledge_base}
+      POSTGRES_DB: ${POSTGRES_DB:-study_assistant}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # 5433 on the host — Windows already has PostgreSQL on 5432
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-vector.sql:ro
