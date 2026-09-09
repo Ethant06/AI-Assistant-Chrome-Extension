@@ -21,9 +21,9 @@ import type {
     MessageResponse,
 } from "@/types/api"
 
-// Same-origin prefix so the auth cookie is first-party.
-// next.config.ts rewrites /backend/* to the FastAPI server.
-const API_URL = "/backend"
+// Local: /backend (Next rewrite → 127.0.0.1:8000).
+// Vercel: set NEXT_PUBLIC_API_URL to the public Railway URL.
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "/backend").replace(/\/$/, "")
 
 
 /**

@@ -22,7 +22,7 @@ app = FastAPI()
 app.add_middleware(
   CORSMiddleware,
   allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-  allow_origin_regex=r"chrome-extension://.*",
+  allow_origin_regex=r"https://.*\.vercel\.app|chrome-extension://.*",
   allow_credentials=True,
   allow_methods=["*"],
   allow_headers=["*"],
@@ -41,6 +41,11 @@ async def log_requests(request: Request, call_next):
 app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(chat.router)
+
+@app.get("/health")
+def health():
+  return {"status": "ok"}
+
 
 @app.get("/")
 def check(user = Depends(get_current_user)):

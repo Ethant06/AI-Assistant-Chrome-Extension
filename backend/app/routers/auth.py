@@ -103,7 +103,7 @@ def login(data: schemas.UserLogin, response: Response, db: Session = Depends(get
     value=token,
     httponly=True,
     secure=IS_PRODUCTION,
-    samesite="lax",
+    samesite="none" if IS_PRODUCTION else "lax",
     max_age=EXPIRE_MIN*60,
     path="/"
   )
@@ -155,7 +155,7 @@ def logout(response: Response):
     key="access_token",
     httponly=True,
     secure=IS_PRODUCTION,
-    samesite="lax",
+    samesite="none" if IS_PRODUCTION else "lax",
     path="/"
   )
 
