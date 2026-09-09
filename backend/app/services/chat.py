@@ -6,10 +6,10 @@ import math
 
 import logging
 import os
-from app.config import OPEN_AI_KEY
+from app.config import OPENAI_API_KEY
 
 logger = logging.getLogger(__name__)
-client = OpenAI(api_key=OPEN_AI_KEY)
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 """
 flush() sends the SQL to the database and gets you the auto-generated ID,
