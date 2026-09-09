@@ -4,10 +4,10 @@ from app.models.tables import Document, DocumentChunk
 from app.database import SessionLocal
 import asyncio
 import logging
-from app.config import OPEN_AI_KEY
+from app.config import OPENAI_API_KEY
 from app.services.document_events import publish_document_event
 
-client = OpenAI(api_key=OPEN_AI_KEY)
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 logger = logging.getLogger(__name__)
 
